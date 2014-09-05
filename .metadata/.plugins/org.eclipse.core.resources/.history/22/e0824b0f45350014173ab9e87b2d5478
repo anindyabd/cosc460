@@ -33,7 +33,6 @@ public class BufferPool {
     public static final int DEFAULT_PAGES = 50;
 
     private HashMap<PageId, Page> pagemap;
-    private int numPages;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -41,8 +40,7 @@ public class BufferPool {
      */
     
     public BufferPool(int numPages) {
-        pagemap = new HashMap<PageId, Page>();
-        this.numPages = numPages;
+        pagemap = new HashMap<PageId, Page>(numPages);
     }
 
     public static int getPageSize() {
@@ -74,14 +72,13 @@ public class BufferPool {
         if (pagemap.containsKey(pid)){
         	return pagemap.get(pid);
         }
-        else if (pagemap.size() < this.numPages) {
+        else {
         	int tableid = pid.getTableId();
         	Catalog catalog = Database.getCatalog();
         	DbFile dbfile = catalog.getDatabaseFile(tableid);
         	this.pagemap.put(pid, dbfile.readPage(pid));
         	return dbfile.readPage(pid);
         }
-        else throw new DbException("Not enough space.");
     }
 
     /**

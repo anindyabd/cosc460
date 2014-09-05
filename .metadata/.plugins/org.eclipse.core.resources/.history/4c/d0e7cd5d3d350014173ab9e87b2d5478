@@ -27,14 +27,8 @@ public class Catalog {
 	private ArrayList<String> tablenamelist;
 	private ArrayList<String> pkeyFieldlist;
 	private ArrayList<Integer> tableidlist;
-	private int count;
 	
     public Catalog() {
-    	tablemap = new HashMap<Integer, DbFile>();
-    	tablenamelist = new ArrayList<String>();
-    	pkeyFieldlist = new ArrayList<String>();
-    	tableidlist = new ArrayList<Integer>();
-    	count = 0;
     }
 
     /**
@@ -52,7 +46,6 @@ public class Catalog {
         tablenamelist.add(name);
         pkeyFieldlist.add(pkeyField);
         tableidlist.add(file.getId());
-        count++;
     }
 
     public void addTable(DbFile file, String name) {
@@ -100,10 +93,7 @@ public class Catalog {
      * @throws NoSuchElementException if the table doesn't exist
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
-    	if (!tablemap.containsKey(tableid)) {
-    		throw new NoSuchElementException();
-    	}
-    	return tablemap.get(tableid).getTupleDesc();
+    	
     }
 
     /**
@@ -114,45 +104,32 @@ public class Catalog {
      *                function passed to addTable
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
-    	if (!tablemap.containsKey(tableid)) {
-    		throw new NoSuchElementException();
-    	}
-        return tablemap.get(tableid);
+        // some code goes here
+        return null;
     }
 
     public String getPrimaryKey(int tableid) {
-        for (int i = 0; i < tableidlist.size(); i++){
-        	if (tableidlist.get(i) == tableid){
-        		return pkeyFieldlist.get(i);
-        	}
-        }
+        // some code goes here
         return null;
     }
 
     public Iterator<Integer> tableIdIterator() {
-        return tableidlist.iterator();
+        // some code goes here
+        return null;
     }
 
     public String getTableName(int id) {
-    	for (int i = 0; i < tableidlist.size(); i++){
-        	if (tableidlist.get(i) == id){
-        		return tablenamelist.get(i);
-        	}
-        }
-    	return null;
+        // some code goes here
+        return null;
     }
 
     /**
      * Delete all tables from the catalog
      */
     public void clear() {
-    	if (this.count == 0){
-    		return;
-    	}
-        this.tablemap.clear();
+        this.tablelist.clear();
         this.tablenamelist.clear();
         this.pkeyFieldlist.clear();
-        this.count = 0;
     }
 
     /**

@@ -2,8 +2,6 @@ package simpledb;
 
 import java.io.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -32,17 +30,13 @@ public class BufferPool {
      */
     public static final int DEFAULT_PAGES = 50;
 
-    private HashMap<PageId, Page> pagemap;
-    private int numPages;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
      * @param numPages maximum number of pages in this buffer pool.
      */
-    
     public BufferPool(int numPages) {
-        pagemap = new HashMap<PageId, Page>();
-        this.numPages = numPages;
+        // some code goes here
     }
 
     public static int getPageSize() {
@@ -71,17 +65,8 @@ public class BufferPool {
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
-        if (pagemap.containsKey(pid)){
-        	return pagemap.get(pid);
-        }
-        else if (pagemap.size() < this.numPages) {
-        	int tableid = pid.getTableId();
-        	Catalog catalog = Database.getCatalog();
-        	DbFile dbfile = catalog.getDatabaseFile(tableid);
-        	this.pagemap.put(pid, dbfile.readPage(pid));
-        	return dbfile.readPage(pid);
-        }
-        else throw new DbException("Not enough space.");
+        // some code goes here
+        return null;
     }
 
     /**

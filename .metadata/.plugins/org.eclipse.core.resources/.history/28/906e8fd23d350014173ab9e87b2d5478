@@ -27,14 +27,8 @@ public class Catalog {
 	private ArrayList<String> tablenamelist;
 	private ArrayList<String> pkeyFieldlist;
 	private ArrayList<Integer> tableidlist;
-	private int count;
 	
     public Catalog() {
-    	tablemap = new HashMap<Integer, DbFile>();
-    	tablenamelist = new ArrayList<String>();
-    	pkeyFieldlist = new ArrayList<String>();
-    	tableidlist = new ArrayList<Integer>();
-    	count = 0;
     }
 
     /**
@@ -52,7 +46,6 @@ public class Catalog {
         tablenamelist.add(name);
         pkeyFieldlist.add(pkeyField);
         tableidlist.add(file.getId());
-        count++;
     }
 
     public void addTable(DbFile file, String name) {
@@ -146,13 +139,9 @@ public class Catalog {
      * Delete all tables from the catalog
      */
     public void clear() {
-    	if (this.count == 0){
-    		return;
-    	}
         this.tablemap.clear();
         this.tablenamelist.clear();
         this.pkeyFieldlist.clear();
-        this.count = 0;
     }
 
     /**

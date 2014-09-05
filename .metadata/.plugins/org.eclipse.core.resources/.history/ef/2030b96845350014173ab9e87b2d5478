@@ -74,14 +74,13 @@ public class BufferPool {
         if (pagemap.containsKey(pid)){
         	return pagemap.get(pid);
         }
-        else if (pagemap.size() < this.numPages) {
+        else if (this.numPages) {
         	int tableid = pid.getTableId();
         	Catalog catalog = Database.getCatalog();
         	DbFile dbfile = catalog.getDatabaseFile(tableid);
         	this.pagemap.put(pid, dbfile.readPage(pid));
         	return dbfile.readPage(pid);
         }
-        else throw new DbException("Not enough space.");
     }
 
     /**

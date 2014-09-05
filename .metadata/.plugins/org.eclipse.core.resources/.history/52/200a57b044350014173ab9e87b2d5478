@@ -116,9 +116,12 @@ public class TupleDesc implements Serializable {
      * @throws NoSuchElementException if no field with a matching name is found.
      */
     public int fieldNameToIndex(String name) throws NoSuchElementException {
+        if (tdlist[0] == null){
+        	throw new NoSuchElementException();
+        }
     	int index = -1;
     	for (int i = 0; i < this.numFields(); i++){
-        	if (this.getFieldName(i)!= null && this.getFieldName(i).equals(name)){
+        	if (this.getFieldName(i).equals(name)){
         		index = i;
         		break;
         	}

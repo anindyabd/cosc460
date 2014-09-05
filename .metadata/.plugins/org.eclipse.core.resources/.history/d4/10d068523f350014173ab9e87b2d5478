@@ -30,11 +30,6 @@ public class Catalog {
 	private int count;
 	
     public Catalog() {
-    	tablemap = new HashMap<Integer, DbFile>();
-    	tablenamelist = new ArrayList<String>();
-    	pkeyFieldlist = new ArrayList<String>();
-    	tableidlist = new ArrayList<Integer>();
-    	count = 0;
     }
 
     /**
