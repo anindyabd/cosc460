@@ -93,7 +93,6 @@ public class HeapFileReadTest extends SimpleDbTestBase {
             fail("expected exception");
         } catch (NoSuchElementException e) {
         }
-
         it.open();
         int count = 0;
         while (it.hasNext()) {

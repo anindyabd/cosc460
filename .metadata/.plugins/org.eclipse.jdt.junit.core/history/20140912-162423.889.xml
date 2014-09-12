@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?><testrun name="HeapFileReadTest" project="mysimpledb" tests="6" started="6" failures="0" errors="0" ignored="0">
+  <testsuite name="simpledb.HeapFileReadTest" time="0.579">
+    <testcase name="getId" classname="simpledb.HeapFileReadTest" time="0.275"/>
+    <testcase name="getTupleDesc" classname="simpledb.HeapFileReadTest" time="0.002"/>
+    <testcase name="numPages" classname="simpledb.HeapFileReadTest" time="0.008"/>
+    <testcase name="readPage" classname="simpledb.HeapFileReadTest" time="0.103"/>
+    <testcase name="testIteratorBasic" classname="simpledb.HeapFileReadTest" time="0.064"/>
+    <testcase name="testIteratorClose" classname="simpledb.HeapFileReadTest" time="0.127"/>
+  </testsuite>
+</testrun>

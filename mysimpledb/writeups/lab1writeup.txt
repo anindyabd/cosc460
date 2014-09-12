@@ -5,21 +5,29 @@ After you complete lab 1, please answer the following questions.  For lab 1, the
 
 1. What is your name?  If you work with a partner, be sure to write both of your names.
 
-<Replace this text with your answer>
+Anindya Guha
 
 2. What did you think of this assignment?
 
-<Replace this text with your answer>
+Some parts were pretty hard, such as the bit manipulation, but the rest was easy.
+Not a lot in between!
 
 3. What was the hardest part of this assignment?
 
-<Replace this text with your answer>
+Bit manipulation for the header, and the iterators.
 
 4. Describe any missing or incomplete elements of your code.
 
-<Replace this text with your answer>
+Everything should be done. However, after running Lab1Main, my output is weird.
+This is what my output looks like:
+0 16777216 16777216 
+16777216 33554432 33554432 
+33554432 50331648 67108864
 
+I've thought very long about why this is the case; my guess is that it's 
+reading (and printing) memory addressess instead of the actual values. I can't figure out why.
+All my unit tests work fine, so it's hard to figure out where things are going wrong because there are so many classes.
 5. Roughly how long did you spend working on this lab?
 
-<Replace this text with your answer>
+At least 10 hours, but probably more.
 

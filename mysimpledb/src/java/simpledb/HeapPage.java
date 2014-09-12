@@ -68,8 +68,10 @@ public class HeapPage implements Page {
      * @return the number of tuples on this page
      */
     private int getNumTuples() {
-        // some code goes here
-        return 0;
+    	int totalbits = (BufferPool.getPageSize() * 8);
+    	int tupleSizeAndHeader = td.getSize()*8 + 1 ;
+    	int numTuples = (int)Math.floor(totalbits / tupleSizeAndHeader);
+        return numTuples;
 
     }
 
@@ -79,10 +81,8 @@ public class HeapPage implements Page {
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
     private int getHeaderSize() {
-
-        // some code goes here
-        return 0;
-
+    	int headerSizeinBytes = (int)Math.ceil(this.numSlots / 8);
+        return headerSizeinBytes;
     }
 
     /**
@@ -114,8 +114,7 @@ public class HeapPage implements Page {
      * @return the PageId associated with this page.
      */
     public HeapPageId getId() {
-        // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return this.pid;
     }
 
     /**
@@ -281,21 +280,60 @@ public class HeapPage implements Page {
         // Not necessary for lab1
         return null;      
     }
+    /**
+     * Counts the number of 0s in the bit representation of the int value. 
+     */
+    private int bitCount(int value){
+    	int count = 0;
+    	int tocompare = 1;
+    	while (tocompare < Math.pow(2, 8)){
+    		if ((value & tocompare) == 0)
+    			count++;
+    		tocompare <<= 1;
+    	}
+    	return count;
+    }
 
     /**
      * Returns the number of empty slots on this page.
      */
     public int getNumEmptySlots() {
-        // some code goes here
-        return 0;
+        int count = 0;
+        for (int i = 0; i < header.length - 1; i++){
+        	Byte thisByte = (Byte)header[i];	
+        	int thisByteInt = thisByte.intValue();
+        	count += bitCount(thisByteInt);
+        } 
+        // handling the last byte separately 
+        // because the higher order bits may not be used.
+        Byte lastbyte = (Byte)header[header.length - 1];
+        int lastbyteint = lastbyte.intValue();
+        int slotsusedinlastbyte = getNumTuples() % 8;
+        for (int i = 0; i < slotsusedinlastbyte; i++){
+        	lastbyteint <<= 1;  
+        }
+        for (int i = 0; i < slotsusedinlastbyte; i++){
+        	lastbyteint >>= 1;
+        }
+        count += bitCount(lastbyteint);
+        return count;
     }
 
     /**
      * Returns true if associated slot on this page is filled.
      */
     public boolean isSlotUsed(int i) {
-        // some code goes here
-        return false;
+        int slotByteNo = (i / 8);
+        if (slotByteNo > getHeaderSize() - 1){
+        	return false;
+        }
+        Byte headerByte = header[slotByteNo];
+        int headerByteInt = headerByte.intValue();
+        int bitInByte = i % 8; 
+        if (((int)Math.pow(2, bitInByte) & headerByteInt) == 0){
+        	return false;
+        }
+        return true;
     }
 
     /**
@@ -311,9 +349,68 @@ public class HeapPage implements Page {
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
-        // some code goes here
-        return null;
+        Iterator<Tuple> it = new myIterator<Tuple>(this, tuples);
+        return it;
     }
+    
+    class myIterator<Tuple> implements Iterator<Tuple> {
 
+        private int currIdx;
+        private Tuple next = null;
+        private HeapPage heappage = null;
+        private Tuple tuples[] = null;
+        
+        public myIterator(HeapPage heappage, Tuple[] tuples) {
+            this.tuples = tuples;
+            this.heappage = heappage;
+            currIdx = 0;
+            next = null;
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (next == null) {
+                fetchNext();
+            }
+            return next != null;
+        }
+
+        /**
+         * Helper method: looks ahead to find the next element that
+         * matches the criteria.
+         */
+        private void fetchNext() {
+            // keep going as long as the current item does not match
+            // the criteria
+            while (currIdx < tuples.length && heappage.isSlotUsed(currIdx)==false) {
+                currIdx++;
+            }
+            // did we find a match or reach the end of the data?
+            if (currIdx < tuples.length) {
+                next = tuples[currIdx];
+                currIdx++;           
+            }
+        }
+
+        @Override
+        public Tuple next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException("");
+            }
+            Tuple returnValue = next;
+            next = null;                
+            return returnValue;
+        }
+
+        @Override
+        public void remove() {
+            throw new UnsupportedOperationException("my data can't be modified...  or maybe I'm just being lazy.");
+        }
+
+    }
+    
 }
+
+
+
 
