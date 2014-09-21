@@ -1,8 +1,6 @@
 package simpledb;
 
 import java.util.*;
-
-import simpledb.HeapFile.myHeapFileIterator;
 import simpledb.TupleDesc.TDItem;
 
 /**
@@ -19,7 +17,7 @@ public class SeqScan implements DbIterator {
     private TransactionId tid;
     private String tableAlias;
     private DbFileIterator fileiterator;
-    private HeapFile file;
+    private DbFile file;
     /**
      * Creates a sequential scan over the specified table as a part of the
      * specified transaction.
@@ -37,7 +35,7 @@ public class SeqScan implements DbIterator {
         this.tid = tid;
         this.tableid = tableid;
         this.tableAlias = tableAlias;
-        this.file = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
+        this.file = (DbFile) Database.getCatalog().getDatabaseFile(tableid);
     }
 
     /**
@@ -61,8 +59,8 @@ public class SeqScan implements DbIterator {
     }
 
     public void open() throws DbException, TransactionAbortedException {
-    	fileiterator = file.new myHeapFileIterator(tid, file.getId(), file.numPages());
-        fileiterator.open();
+    	fileiterator = file.iterator(tid);
+    	fileiterator.open();
     }
 
     /**
@@ -82,13 +80,14 @@ public class SeqScan implements DbIterator {
         int i = 0;
         Iterator<TDItem> iterator = td.iterator();
         while (iterator.hasNext()){
+        	iterator.next();
         	types[i] = td.getFieldType(i);
         	names[i] = td.getFieldName(i);
         	i++;
         }
         String[] newnames = new String[names.length];
         for (int j = 0; j < names.length; j++){
-        	newnames[i] = tableAlias + "." + names[i]; 
+        	newnames[j] = tableAlias + "." + names[j]; 
         }
         TupleDesc newtd = new TupleDesc(types, newnames);
         return newtd;

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?><testrun name="CatalogTest" project="mysimpledb" tests="3" started="3" failures="0" errors="0" ignored="0">
-  <testsuite name="simpledb.CatalogTest" time="0.155">
-    <testcase name="getTupleDesc" classname="simpledb.CatalogTest" time="0.147"/>
-    <testcase name="getTableId" classname="simpledb.CatalogTest" time="0.007"/>
-    <testcase name="getDatabaseFile" classname="simpledb.CatalogTest" time="0.001"/>
-  </testsuite>
-</testrun>
