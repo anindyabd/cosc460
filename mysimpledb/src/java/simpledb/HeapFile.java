@@ -97,8 +97,11 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public void writePage(Page page) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        int offset = page.getId().pageNumber()*BufferPool.getPageSize();
+        RandomAccessFile randfile = new RandomAccessFile(file, "rw");
+        randfile.seek(offset);
+        randfile.write(page.getPageData());
+        randfile.close();
     }
 
     /**
@@ -115,31 +118,27 @@ public class HeapFile implements DbFile {
 	   int pgNo = 0;
 	   Permissions perm = Permissions.READ_WRITE;
 	   HeapPageId heappageid = new HeapPageId(this.getId(), pgNo);
-	   BufferPool bufferpool = Database.getBufferPool();
-	   HeapPage page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
-	   int count = 0;
+	   HeapPage page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
 	   boolean mustAddNewPage = false;
 	   while (page.getNumEmptySlots() == 0) {
-		   System.out.println("blah");
 		   pgNo++;
 		   heappageid = new HeapPageId(this.getId(), pgNo);
-		   count++;
-		   if (count == this.numPages()) {
+		   if (pgNo == this.numPages()) {
 			   mustAddNewPage = true;
 			   break;
 		   }
-		   page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
-		   count++;
+		   page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
 	   }
 	   
 	   if (mustAddNewPage) {
-		   System.out.println("does it get here?");
-		   byte[] pagedata = HeapPage.createEmptyPageData(); // I finally understand what static means
+		   byte[] pagedata = HeapPage.createEmptyPageData(); 
 		   page = new HeapPage(heappageid, pagedata);
+		   page.insertTuple(t);
+		   this.writePage(page);
 	   }
-	   System.out.println(this.numPages());
-	   page.insertTuple(t);
-	   
+	   else {
+		   page.insertTuple(t);
+	   }
 	   ArrayList<Page> pageArrayList = new ArrayList<Page>();
        pageArrayList.add(page);
        return pageArrayList; 
@@ -147,7 +146,7 @@ public class HeapFile implements DbFile {
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
-            TransactionAbortedException {
+            TransactionAbortedException, IOException {
         PageId pageID = t.getRecordId().getPageId();
         HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pageID, Permissions.READ_WRITE);
         page.deleteTuple(t);
@@ -183,9 +182,15 @@ class HeapFileIterator implements DbFileIterator {
 		Permissions perm = Permissions.READ_ONLY;
 		HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
 		BufferPool bufferpool = Database.getBufferPool();
-		HeapPage page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
-		currpage = page;
-		heappageiterator = (myIterator) currpage.iterator();
+		HeapPage page;
+		try {
+			page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
+			currpage = page;
+			heappageiterator = (myIterator) currpage.iterator();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 	}
 	
 	public boolean hasNext(){
@@ -211,10 +216,18 @@ class HeapFileIterator implements DbFileIterator {
 			Permissions perm = Permissions.READ_ONLY;
 			HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
 			BufferPool bufferpool = Database.getBufferPool();
-			HeapPage page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
-			currpage = page;
-			heappageiterator = (myIterator) currpage.iterator();
-			return heappageiterator.next();
+			HeapPage page;
+			try {
+				page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
+				currpage = page;
+				heappageiterator = (myIterator) currpage.iterator();
+				return heappageiterator.next();
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.out.println("IOException");
+				return null;
+			}
+			
 		}
 	}
 	

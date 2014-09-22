@@ -7,4 +7,5 @@
 <fullyQualifiedTypeName name="simpledb.TupleDesc.TDItem"/>
 <fullyQualifiedTypeName name="simpledb.HeapFile.myHeapFileIterator"/>
 <fullyQualifiedTypeName name="simpledb.HeapPage.myIterator"/>
+<fullyQualifiedTypeName name="java.util.TreeMap"/>
 </qualifiedTypeNameHistroy>

@@ -4,6 +4,7 @@ import java.io.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -34,6 +35,7 @@ public class BufferPool {
 
     private HashMap<PageId, Page> pagemap;
     private int numPages;
+    private TreeMap<Long, Page> timemap;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -43,6 +45,7 @@ public class BufferPool {
     public BufferPool(int numPages) {
         pagemap = new HashMap<PageId, Page>();
         this.numPages = numPages;
+        timemap = new TreeMap<Long, Page>();
     }
 
     public static int getPageSize() {
@@ -68,19 +71,35 @@ public class BufferPool {
      * @param tid  the ID of the transaction requesting the page
      * @param pid  the ID of the requested page
      * @param perm the requested permissions on the page
+     * @throws IOException 
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
-            throws TransactionAbortedException, DbException {
+            throws TransactionAbortedException, DbException, IOException {
         if (pagemap.containsKey(pid)){
-        	return pagemap.get(pid);
+        	Long time = System.currentTimeMillis();
+        	Page page = pagemap.get(pid);
+        	timemap.put(time, page);
+        	return page;
         }
         else if (pagemap.size() < this.numPages) {
         	int tableid = pid.getTableId();
         	DbFile dbfile = Database.getCatalog().getDatabaseFile(tableid);
         	this.pagemap.put(pid, dbfile.readPage(pid));
-        	return pagemap.get(pid);
+        	Page page = pagemap.get(pid);
+        	Long time = System.currentTimeMillis();
+        	timemap.put(time, page);
+        	return page;
         }
-        else throw new DbException("Not enough space.");
+        else {
+        	this.evictPage();
+        	int tableid = pid.getTableId();
+        	DbFile dbfile = Database.getCatalog().getDatabaseFile(tableid);
+        	this.pagemap.put(pid, dbfile.readPage(pid));
+        	Page page = pagemap.get(pid);
+        	Long time = System.currentTimeMillis();
+        	timemap.put(time, page);
+        	return page;
+        }
     }
 
     /**
@@ -145,8 +164,12 @@ public class BufferPool {
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+       DbFile file = Database.getCatalog().getDatabaseFile(tableId); 
+       ArrayList<Page> pagelist = file.insertTuple(tid, t);
+       for (Page page : pagelist) {
+    	   page.markDirty(true, tid);
+    	   pagemap.get(page.getId()).markDirty(true, tid);
+       }
     }
 
     /**
@@ -163,8 +186,13 @@ public class BufferPool {
      */
     public void deleteTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        // not necessary for lab1
+    	int tableId = t.getRecordId().getPageId().getTableId();
+    	DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+    	ArrayList<Page> pagelist = file.deleteTuple(tid, t);
+    	for (Page page : pagelist) {
+     	   page.markDirty(true, tid);
+     	   pagemap.put(page.getId(), page);
+        }
     }
 
     /**
@@ -173,8 +201,9 @@ public class BufferPool {
      * break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        for (PageId pageid : pagemap.keySet()) {
+        	this.flushPage(pageid);
+        }
 
     }
 
@@ -195,8 +224,13 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        int tableId = pid.getTableId();
+        DbFile file = Database.getCatalog().getDatabaseFile(tableId);
+        Page page = pagemap.get(pid);
+        file.writePage(page);
+        TransactionId tid = new TransactionId();
+        page.markDirty(false, tid);
+        pagemap.put(pid, page); // update hashmap
     }
 
     /**
@@ -210,10 +244,18 @@ public class BufferPool {
     /**
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
+     * @throws IOException 
      */
-    private synchronized void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+    private synchronized void evictPage() throws DbException, IOException {
+        Page toevict = timemap.get(timemap.firstKey());
+        System.out.println(timemap.firstKey());
+        System.out.println(pagemap.get(toevict.getId()));
+        Page localcopy = pagemap.get(toevict.getId());
+        this.flushPage(localcopy.getId());
+        pagemap.remove(localcopy.getId());
+        timemap.remove(timemap.firstKey());
+        this.numPages--;
+        
     }
 
 }
