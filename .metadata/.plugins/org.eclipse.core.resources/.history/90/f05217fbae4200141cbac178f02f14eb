@@ -22,22 +22,20 @@ public class Lab2Main {
             while (f.hasNext()) {
                 Tuple tup = f.next();
                 IntField three = new IntField(3);
-                
-                if (tup.getField(1).compare(Predicate.Op.LESS_THAN, three)) {
+                if (!tup.getField(1).equals(three)) {
                 	System.out.printf("Update tuple: %s", tup);
                 	tup.setField(1, three);
                 	System.out.println("to be: " + tup);
                 }
             }
-            
-
-            Database.getBufferPool().flushAllPages();
-            Database.getBufferPool().transactionComplete(tid);
-            	
         } catch (Exception e) {
             System.out.println ("Exception : " + e);
         }
+        
 
+        Database.getBufferPool().flushAllPages();
+        Database.getBufferPool().transactionComplete(tid);
+        	
         f.close();
             
         Tuple t = new Tuple(descriptor);
@@ -49,20 +47,7 @@ public class Lab2Main {
             
         table1.insertTuple(tid, t);
            
-        try {
-            f.open();
-            while (f.hasNext()) {
-                Tuple tup = f.next();
-                System.out.println("Tuple: " + tup);
-            }
-            f.close();
-            Database.getBufferPool().flushAllPages();
-            Database.getBufferPool().transactionComplete(tid);
-        } catch (Exception e) {
-            System.out.println ("Exception : " + e);
-        }
-    }
             
         
-	
+	}
 }

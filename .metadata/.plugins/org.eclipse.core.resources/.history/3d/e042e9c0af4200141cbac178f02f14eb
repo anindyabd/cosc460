@@ -316,7 +316,7 @@ public class HeapPage implements Page {
     private int bitCount(int value){
     	int count = 0;
     	int tocompare = 1;
-    	while (tocompare <= Math.pow(2, 8)){
+    	while (tocompare <= 0b11111111){
     		if ((value & tocompare) == 0)
     			count++;
     		tocompare <<= 1;
