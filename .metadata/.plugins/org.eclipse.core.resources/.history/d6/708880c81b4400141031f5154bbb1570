@@ -56,26 +56,29 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
+    	Tuple t = currTuple;
     	if (currTuple == null) {
-    		if (child.hasNext()) {
-    			currTuple = child.next();
-    		}
+    		if (!child.hasNext()) {
+            	return null;
+            }
     		else {
-    			return null;
+    			t = child.next();
+    			currTuple = t;
     		}
     	}
     	while (child.hasNext()) {
-    		if (p.filter(currTuple)) {
-    			Tuple toreturn = currTuple;
-    			currTuple = child.next();
-    			return toreturn;
-    		}
+        	if (p.filter(t)){
+        		break;
+        	}
+        	t = child.next();
+        }
+    	if (child.hasNext()){
     		currTuple = child.next();
     	}
-    	if (p.filter(currTuple)) {
-    		return currTuple;
+    	else {
+    		currTuple = null;
     	}
-    	return null;
+        return t;
     }
 
     @Override

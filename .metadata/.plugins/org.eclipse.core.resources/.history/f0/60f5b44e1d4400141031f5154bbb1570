@@ -66,14 +66,10 @@ public class Filter extends Operator {
     	}
     	while (child.hasNext()) {
     		if (p.filter(currTuple)) {
-    			Tuple toreturn = currTuple;
     			currTuple = child.next();
-    			return toreturn;
+    			return currTuple;
     		}
     		currTuple = child.next();
-    	}
-    	if (p.filter(currTuple)) {
-    		return currTuple;
     	}
     	return null;
     }

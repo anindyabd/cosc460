@@ -10,7 +10,6 @@ public class Filter extends Operator {
     private static final long serialVersionUID = 1L;
     private Predicate p;
     private DbIterator child;
-    private Tuple currTuple;
     /**
      * Constructor accepts a predicate to apply and a child operator to read
      * tuples to filter from.
@@ -56,26 +55,18 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-    	if (currTuple == null) {
-    		if (child.hasNext()) {
-    			currTuple = child.next();
-    		}
-    		else {
-    			return null;
-    		}
-    	}
+    	if (!child.hasNext()) {
+        	throw new NoSuchElementException();
+        }
+        Tuple t = child.next();
     	while (child.hasNext()) {
-    		if (p.filter(currTuple)) {
-    			Tuple toreturn = currTuple;
-    			currTuple = child.next();
-    			return toreturn;
-    		}
-    		currTuple = child.next();
-    	}
-    	if (p.filter(currTuple)) {
-    		return currTuple;
-    	}
-    	return null;
+        	if (p.filter(t)){
+        		break;
+        	}
+        	t = child.next();
+        }
+    	
+        return t;
     }
 
     @Override

@@ -59,6 +59,7 @@ public abstract class Operator implements DbIterator {
     private int estimatedCardinality = 0;
 
     public void open() throws DbException, TransactionAbortedException {
+        System.out.println("Opening");
     	this.open = true;
     }
     

@@ -16,22 +16,29 @@ Aggregate, Delete, Filter, HashEquiJoin, Insert, Join, OrderBy, Project
 4. The Filter operator implements DbIterator by extending the abstract class Operator, 
 in which next() and hasNext() are implemented. (Operator directly implements DbIterator). Thus, Filter uses the next() and hasNext() operations in its super class, Operator. 
 
-5. while (iterR.hasNext()) :
-    tuple = iterR.next();
-    if tuple matches predicate: 
-        return tuple
-
+5.  private Tuple currTuple;
+    if currTuple == null:
+        if iterR.hasNext():
+            currTuple = iterR.next()
+    while (iterR.hasNext()) :
+        if currTuple matches predicate: 
+            return currTuple
+        currTuple = currTuple.next;
    return null;
 
 6.  list = [] 
-    while iterR.hasNext():
+    if t1 == null:
         t1 = iterR.next();
+    if t2 == null:
+        t2 = iterR.next();
+    while iterR.hasNext():
         while iterS.hasNext():
-            t2 = iterS.next()
             if t1 and t2 match join predicate:
                 tNew = merge(t1, t2) 
                 list.append(tNew)
+            t2 = iterS.next();
         iterS.rewind()
+        t1 = iterR.next();
     return list
 
 7.  while (t1 != null):
