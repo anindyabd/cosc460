@@ -3,14 +3,72 @@ Report for Lab 3
 
 Answer the questions from the lab description here.  Questions 8 and 9 do not require answers.
 
-1.
-2.
-3.
-4.
-5.
-6.
-7.
+1. The classes that implement the DbIterator interface are:
 
+Aggregate, Delete, Filter, HashEquiJoin, Insert, Join, Operator, OrderBy, Project, SeqScan, TupleIterator
+
+2. The subclasses of Operator are: 
+
+Aggregate, Delete, Filter, HashEquiJoin, Insert, Join, OrderBy, Project
+
+3. Select, Project, and Join are implemented as subclasses of Operator.
+
+4. The Filter operator implements DbIterator by extending the abstract class Operator, 
+in which next() and hasNext() are implemented. (Operator directly implements DbIterator). Thus, Filter uses the next() and hasNext() operations in its super class, Operator. 
+
+5. while (iterR.hasNext()) :
+    tuple = iterR.next();
+    if tuple matches predicate: 
+        return tuple
+
+   return null;
+
+6.  list = [] 
+    while iterR.hasNext():
+        t1 = iterR.next();
+        while iterS.hasNext():
+            t2 = iterS.next()
+            if t1 and t2 match join predicate:
+                tNew = merge(t1, t2) 
+                list.append(tNew)
+        iterS.rewind()
+    return list
+
+7.  while (t1 != null):
+        if t1 == null:
+            return null
+        if t1 and t2 match join predicate:
+            tNew = merge(t1, t2)
+            if iterS.hasNext():
+                t2 = iterS.next();
+            else: 
+                t2.rewind()
+                t2 = iterS.next();
+                
+                if iterR.hasNext():
+                    t1 = iterR.next();
+                else:
+                    t1 = null;
+            
+            return tNew;   
+        
+        else:
+            if iterS.hasNext():
+                t2 = iterS.next();
+            else: 
+                t2.rewind()
+                t2 = iterS.next();
+                
+                if iterR.hasNext():
+                    t1 = iterR.next();
+                else:
+                    t1 = null;
+            if (t1 != null) and t1 and t2 match join predicate:
+                tNew = merge(t1, t2)
+                return tNew; 
+
+            return null;
+            
 After you complete lab 3, please answer the following questions.  
 
 1. What is your name?  If you work with a partner, be sure to write both of your names.

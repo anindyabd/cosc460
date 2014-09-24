@@ -59,9 +59,10 @@ public abstract class Operator implements DbIterator {
     private int estimatedCardinality = 0;
 
     public void open() throws DbException, TransactionAbortedException {
-        this.open = true;
+        System.out.println("Opening");
+    	this.open = true;
     }
-
+    
     /**
      * @return return the children DbIterators of this operator. If there is
      * only one child, return an array of only one element. For join
