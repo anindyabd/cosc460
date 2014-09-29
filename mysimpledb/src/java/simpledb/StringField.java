@@ -24,8 +24,10 @@ public class StringField implements Field {
      */
     public StringField(String s, int maxSize) {
         this.maxSize = maxSize;
-
-        if (s.length() > maxSize)
+        if (s==null) {
+        	value = null;
+        }
+        else if (s.length() > maxSize)
             value = s.substring(0, maxSize);
         else
             value = s;

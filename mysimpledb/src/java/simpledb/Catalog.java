@@ -80,7 +80,7 @@ public class Catalog {
         boolean idfound = false;
         int id = -1;
     	for (int i = 0; i < this.tablemap.size(); i++){
-        	if (tablenamelist.get(i).equals(name)){
+        	if (tablenamelist.get(i).equalsIgnoreCase(name)){
         		id = tableidlist.get(i);
         		idfound = true;
         		break;

@@ -9,4 +9,5 @@
 <fullyQualifiedTypeName name="simpledb.HeapPage.myIterator"/>
 <fullyQualifiedTypeName name="java.util.TreeMap"/>
 <fullyQualifiedTypeName name="simpledb.Predicate.Op"/>
+<fullyQualifiedTypeName name="simpledb.Tuple"/>
 </qualifiedTypeNameHistroy>

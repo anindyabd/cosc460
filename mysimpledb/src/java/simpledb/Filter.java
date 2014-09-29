@@ -73,7 +73,9 @@ public class Filter extends Operator {
     		currTuple = child.next();
     	}
     	if (p.filter(currTuple)) {
-    		return currTuple;
+    		Tuple toreturn = currTuple;
+    		currTuple = null;
+    		return toreturn;
     	}
     	return null;
     }
