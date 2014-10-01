@@ -11,25 +11,29 @@ public class Lab3Main {
 	        // file named college.schema must be in mysimpledb directory
 	        Database.getCatalog().loadSchema("college.schema");
 
-	        // SQL query: SELECT * FROM STUDENTS WHERE name="Alice"
-	        // algebra translation: select_{name="alice"}( Students )
-	        // query plan: a tree with the following structure
-	        // - a Filter operator is the root; filter keeps only those w/ name=Alice
-	        // - a SeqScan operator on Students at the child of root
 	        TransactionId tid = new TransactionId();
+	        
 	        SeqScan scanStudents = new SeqScan(tid, Database.getCatalog().getTableId("students"));
 	        SeqScan scanTakes = new SeqScan(tid, Database.getCatalog().getTableId("takes"));
+	        SeqScan scanProfs = new SeqScan(tid, Database.getCatalog().getTableId("profs"));
+	        
 	        JoinPredicate p = new JoinPredicate(0, Predicate.Op.EQUALS, 0);
-	        Join joinStudents = new Join(p, scanStudents, scanTakes);
-
+	        Join joinStudentsAndTakes = new Join(p, scanStudents, scanTakes);
+	        
+	        JoinPredicate p1 = new JoinPredicate(3, Predicate.Op.EQUALS, 2);
+	        Join joinAllThree = new Join(p1, joinStudentsAndTakes, scanProfs);
+	        
+	        StringField hay = new StringField("hay", 3);
+	        Predicate filterpredicate1 = new Predicate(5, Predicate.Op.EQUALS, hay);
+	        Filter f = new Filter(filterpredicate1, joinAllThree);
 	        // query execution: we open the iterator of the root and iterate through results
 	        System.out.println("Query results:");
-	        joinStudents.open();
-	        while (joinStudents.hasNext()) {
-	            Tuple tup = joinStudents.next();
+	        f.open();
+	        while (f.hasNext()) {
+	            Tuple tup = f.next();
 	            System.out.println("\t"+tup);
 	        }
-	        joinStudents.close();
+	        f.close();
 	        Database.getBufferPool().transactionComplete(tid);
 	    }
 

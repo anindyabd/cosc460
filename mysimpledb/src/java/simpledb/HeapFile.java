@@ -198,10 +198,28 @@ class HeapFileIterator implements DbFileIterator {
 		if (heappageiterator.hasNext()){
 			return true;
 		}
-		else if (pgNo < this.numPages - 1) {
-			return true;
+		this.pgNo++;
+		Permissions perm = Permissions.READ_ONLY;
+		HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
+		BufferPool bufferpool = Database.getBufferPool();
+		HeapPage page;
+		try {
+			page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
+			currpage = page;
+			heappageiterator = (myIterator) currpage.iterator();
+			
+			return heappageiterator.hasNext();	
 		}
-		else return false;
+		catch (DbException e) {
+			System.out.println("IOException");
+		} catch (TransactionAbortedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return false;
 	}
 	
 	public Tuple next() throws TransactionAbortedException, DbException{
@@ -221,7 +239,9 @@ class HeapFileIterator implements DbFileIterator {
 				page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
 				currpage = page;
 				heappageiterator = (myIterator) currpage.iterator();
+				
 				return heappageiterator.next();
+				
 			} catch (IOException e) {
 				e.printStackTrace();
 				System.out.println("IOException");

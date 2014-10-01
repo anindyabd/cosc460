@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.IOException;
 
+
 /**
  * The delete operator. Delete reads tuples from its child operator and removes
  * them from the table they belong to.
@@ -9,7 +10,10 @@ import java.io.IOException;
 public class Delete extends Operator {
 
     private static final long serialVersionUID = 1L;
-
+    
+    private TransactionId tid;
+    private DbIterator child;
+    private int numberOfCalls;
     /**
      * Constructor specifying the transaction that this delete belongs to as
      * well as the child to read from.
@@ -18,24 +22,30 @@ public class Delete extends Operator {
      * @param child The child operator from which to read tuples for deletion
      */
     public Delete(TransactionId t, DbIterator child) {
-        // some code goes here
+        this.tid = t;
+        this.child = child;
+        this.numberOfCalls = 0;
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        Type[] inttype = {Type.INT_TYPE};
+        TupleDesc td = new TupleDesc(inttype);
+        return td;
     }
 
     public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
+        child.open();
+    	super.open();
     }
 
     public void close() {
-        // some code goes here
+    	child.close();
+        super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        child.rewind();
+        this.numberOfCalls = 0;
     }
 
     /**
@@ -48,19 +58,45 @@ public class Delete extends Operator {
      * @see BufferPool#deleteTuple
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        this.numberOfCalls++;
+        if (this.numberOfCalls > 1) {
+        	return null;
+        }
+    	int count = 0;
+        Tuple currtuple = null;
+    	if (child.hasNext()) {
+        	currtuple = child.next();
+    	}
+    	while (currtuple != null) {
+        	try {
+				Database.getBufferPool().deleteTuple(this.tid, currtuple);
+				count++;
+				if (child.hasNext()){
+					currtuple = child.next();
+				}
+				else {
+					currtuple = null;
+				}
+			} catch (IOException e) {
+				throw new DbException("BufferPool threw IOException.");
+			}
+        	
+        }
+    	Tuple tupletoreturn = new Tuple(this.getTupleDesc());
+    	IntField intfield = new IntField(count);
+    	tupletoreturn.setField(0, intfield);
+    	return tupletoreturn;
     }
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+        DbIterator[] children = {this.child};
+        return children;
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        this.child = children[0];
     }
 
 }
