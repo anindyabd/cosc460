@@ -198,13 +198,15 @@ class HeapFileIterator implements DbFileIterator {
 		if (heappageiterator.hasNext()){
 			return true;
 		}
+		if (pgNo == this.numPages-1) {
+			return false;
+		}
 		this.pgNo++;
 		Permissions perm = Permissions.READ_ONLY;
 		HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
-		BufferPool bufferpool = Database.getBufferPool();
 		HeapPage page;
 		try {
-			page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
+			page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
 			currpage = page;
 			heappageiterator = (myIterator) currpage.iterator();
 			

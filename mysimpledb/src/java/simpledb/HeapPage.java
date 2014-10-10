@@ -316,7 +316,7 @@ public class HeapPage implements Page {
     private int bitCount(int value){
     	int count = 0;
     	int tocompare = 1;
-    	while (tocompare <= Math.pow(2, 8)){
+    	while (tocompare < Math.pow(2, 8)){
     		if ((value & tocompare) == 0)
     			count++;
     		tocompare <<= 1;
@@ -330,21 +330,16 @@ public class HeapPage implements Page {
     public int getNumEmptySlots() {
         int count = 0;
         for (int i = 0; i < header.length - 1; i++){
-        	Byte thisByte = (Byte)header[i];	
-        	int thisByteInt = thisByte.intValue();
-        	count += bitCount(thisByteInt);
+        	Byte thisByte = header[i];	
+        	count += bitCount(thisByte);
         } 
         // handling the last byte separately 
         // because the higher order bits may not be used.
-        Byte lastbyte = (Byte)header[header.length - 1];
+        Byte lastbyte = header[header.length - 1];
         int lastbyteint = lastbyte.intValue();
         int slotsusedinlastbyte = this.getNumTuples() % 8;
-        for (int i = 0; i < slotsusedinlastbyte; i++){
-        	lastbyteint <<= 1;  
-        }
-        for (int i = 0; i < slotsusedinlastbyte; i++){
-        	lastbyteint >>= 1;
-        }
+        lastbyteint <<= slotsusedinlastbyte;
+        lastbyteint >>= slotsusedinlastbyte;
         count += bitCount(lastbyteint);
         return count;
     }

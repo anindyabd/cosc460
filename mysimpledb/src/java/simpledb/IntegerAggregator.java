@@ -1,5 +1,7 @@
 package simpledb;
 
+import java.util.ArrayList;
+
 /**
  * Knows how to compute some aggregate over a set of IntFields.
  */
@@ -7,6 +9,12 @@ public class IntegerAggregator implements Aggregator {
 
     private static final long serialVersionUID = 1L;
 
+    private int gbfield;
+    private Type gbfieldtype;
+    private int afield;
+    private Op what;
+    private TupleDesc td;
+    private ArrayList<Tuple> tuplelist;
     /**
      * Aggregate constructor
      *
@@ -19,7 +27,22 @@ public class IntegerAggregator implements Aggregator {
      */
 
     public IntegerAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
-        // some code goes here
+    	this.gbfield = gbfield;
+    	this.gbfieldtype = gbfieldtype;
+    	this.afield = afield;
+    	this.what = what;
+    	if (gbfield == Aggregator.NO_GROUPING) {
+    		Type[] typeArr = {Type.INT_TYPE};
+    		String[] fieldArr = {"aggregateVal"};
+    		TupleDesc tupledesc = new TupleDesc(typeArr, fieldArr);
+    		this.td = tupledesc;
+    	}
+    	else {
+    		Type[] typeArr = {Type.INT_TYPE, Type.INT_TYPE};
+    		String[] fieldArr = {"groupVal", "aggregateVal"};
+    		TupleDesc tupledesc = new TupleDesc(typeArr, fieldArr);
+    		this.td = tupledesc;
+    	}
     }
 
     /**
@@ -29,7 +52,11 @@ public class IntegerAggregator implements Aggregator {
      * @param tup the Tuple containing an aggregate field and a group-by field
      */
     public void mergeTupleIntoGroup(Tuple tup) {
-        // some code goes here
+        IntField thisintfield = (IntField) tup.getField(this.afield);
+    	if (this.td.numFields() == 1) {
+    		
+    	}
+        
     }
 
     /**
