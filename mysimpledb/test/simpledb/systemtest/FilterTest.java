@@ -16,7 +16,6 @@ public class FilterTest extends FilterBase {
 
         int resultCount = 0;
         while (filter.hasNext()) {
-        	System.out.println("Bla");
             assertNotNull(filter.next());
             resultCount += 1;
         }
