@@ -1,10 +1,16 @@
 package simpledb;
 
+import java.util.*;
+
+import simpledb.Predicate.Op;
 /**
  * A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
 
+		
+	private int buckets, min, max, bucket_interval, last_bucket_key, total_tuples;
+	private HashMap<Integer, Integer> bucketmap;
     /**
      * Create a new IntHistogram.
      * <p/>
@@ -22,7 +28,22 @@ public class IntHistogram {
      * @param max     The maximum integer value that will ever be passed to this class for histogramming
      */
     public IntHistogram(int buckets, int min, int max) {
-        // some code goes here
+        this.buckets = buckets;
+        if (buckets > max - min) {
+        	buckets = max - min;
+        	this.buckets = buckets;
+        }
+        this.min = min;
+        this.max = max;
+        int bucket_interval = (max - min) / buckets;
+        int leftover = (max - min + 1) % buckets; 
+        this.bucket_interval = bucket_interval;
+        bucketmap = new HashMap<>();
+        for (int i = 0; i < buckets; i += bucket_interval) {
+        	bucketmap.put(i, 0);
+        }
+        int last_bucket_key = max - bucket_interval - leftover;
+        this.last_bucket_key = last_bucket_key;
     }
 
     /**
@@ -31,7 +52,21 @@ public class IntHistogram {
      * @param v Value to add to the histogram
      */
     public void addValue(int v) {
-        // some code goes here
+    	if (v < min || v > max) {
+        	throw new RuntimeException();
+        }
+    	total_tuples++;
+        Boolean did_put = false;
+        
+        for (int i = 0; i < buckets; i += bucket_interval) {
+        	if (v > i && (v-i) < bucket_interval) {
+        		bucketmap.put(i, v);
+        	}
+        }
+        //if the above didn't work, we add to the last bucket.
+        if (did_put == false) {
+        	bucketmap.put(last_bucket_key, v);
+        }
     }
 
     /**
@@ -45,8 +80,26 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-
-        // some code goes here
+        double h = -1;
+        double w = -1;
+        double selectivity = -1;
+    	if (op.equals(Op.EQUALS) || op.equals(op.LIKE)) {
+        	if (v <= max && v > last_bucket_key) {
+        		h = last_bucket_key;
+        		w = bucketmap.get(h);
+        		selectivity = (h / w)/total_tuples;
+        		return selectivity;
+        	}
+        	for (Integer value:bucketmap.keySet()) {
+        		if (v > value && (v - value) < bucket_interval) {
+        			h = v;
+        			w = bucketmap.get(v);
+        			break;
+        		}
+        	}
+        	selectivity = (h / w)/total_tuples;
+        	return selectivity;
+        }
         return -1.0;
     }
 

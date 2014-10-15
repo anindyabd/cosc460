@@ -145,14 +145,19 @@ public class Join extends Operator {
        }
        else {
     	   while (child1tuple != null){
-    		   while (child2.hasNext()) {
+    		   while (child2tuple != null) {
     			   if (p.filter(child1tuple, child2tuple)) {
     				   Tuple joinedTuple = this.joinTuples(child1tuple, child2tuple);
     				   child2tuple = null;
     				   return joinedTuple;
     			   }
-    			   child2tuple = child2.next();
-    		   }
+    			   if (child2.hasNext()) {
+    				   child2tuple = child2.next();
+    			   }
+    			   else {
+    				   child2tuple = null;
+    			   }
+    		}
     		   child2.rewind();
     		   child2tuple = child2.next();
     		   if (child1.hasNext()) {
