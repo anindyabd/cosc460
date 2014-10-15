@@ -38,7 +38,7 @@ public class IntHistogram {
         int bucket_interval = (max - min) / buckets;
         int leftover = (max - min + 1) % buckets; 
         this.bucket_interval = bucket_interval;
-        bucketmap = new HashMap<>();
+        bucketmap = new HashMap<Integer, Integer>();
         for (int i = 0; i < buckets; i += bucket_interval) {
         	bucketmap.put(i, 0);
         }
