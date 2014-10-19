@@ -9,8 +9,8 @@ import simpledb.Predicate.Op;
 public class IntHistogram {
 
 		
-	private int buckets, min, max, bucket_interval, last_bucket_key, total_tuples;
-	private HashMap<Integer, Integer> bucketmap;
+	private int buckets, min, max, bucket_interval, total_tuples, remainder;
+	private int[] bucketlist;  
     /**
      * Create a new IntHistogram.
      * <p/>
@@ -29,21 +29,19 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
         this.buckets = buckets;
-        if (buckets > max - min) {
-        	buckets = max - min;
+        if (buckets > max - min + 1) {
+        	buckets = max - min + 1;
         	this.buckets = buckets;
         }
         this.min = min;
         this.max = max;
-        int bucket_interval = (max - min) / buckets;
-        int leftover = (max - min + 1) % buckets; 
-        this.bucket_interval = bucket_interval;
-        bucketmap = new HashMap<Integer, Integer>();
-        for (int i = 0; i < buckets; i += bucket_interval) {
-        	bucketmap.put(i, 0);
+        this.bucket_interval = (max - min + 1) / buckets;
+        this.remainder = (max - min + 1) % buckets; 
+        bucketlist = new int[buckets];
+        for (int i = 0; i < buckets; i++) {
+        	bucketlist[i] = 0;
         }
-        int last_bucket_key = max - bucket_interval - leftover;
-        this.last_bucket_key = last_bucket_key;
+        this.total_tuples = 0;
     }
 
     /**
@@ -56,17 +54,13 @@ public class IntHistogram {
         	throw new RuntimeException();
         }
     	total_tuples++;
-        Boolean did_put = false;
-        
-        for (int i = 0; i < buckets; i += bucket_interval) {
-        	if (v > i && (v-i) < bucket_interval) {
-        		bucketmap.put(i, v);
-        	}
+        int bucketno = (v - this.min)/this.bucket_interval;
+        if (bucketno >= buckets) {
+        	bucketno = buckets - 1;
         }
-        //if the above didn't work, we add to the last bucket.
-        if (did_put == false) {
-        	bucketmap.put(last_bucket_key, v);
-        }
+        int count = bucketlist[bucketno];
+        count++;
+        bucketlist[bucketno] = count;
     }
 
     /**
@@ -80,34 +74,94 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-        double h = -1;
-        double w = -1;
         double selectivity = -1;
-    	if (op.equals(Op.EQUALS) || op.equals(op.LIKE)) {
-        	if (v <= max && v > last_bucket_key) {
-        		h = last_bucket_key;
-        		w = bucketmap.get(h);
-        		selectivity = (h / w)/total_tuples;
-        		return selectivity;
+        int bucketno = (v - this.min)/this.bucket_interval;
+        double w = this.bucket_interval;
+        if (bucketno >= buckets - 1) {
+        	w = bucket_interval + remainder;
+        	if (v <= this.max) {
+        		bucketno = buckets -1;
         	}
-        	for (Integer value:bucketmap.keySet()) {
-        		if (v > value && (v - value) < bucket_interval) {
-        			h = v;
-        			w = bucketmap.get(v);
-        			break;
+        }
+        double h = 0;
+        if (v >= this.min && v <= this.max){
+        	h = bucketlist[bucketno];
+        }
+        if (op.equals(Op.EQUALS) || op.equals(Op.LIKE)) {
+        	if (v > max || v < min) {
+        		selectivity = 0;
+        	}
+        	else {
+        		selectivity = (h/w) / (double) this.total_tuples;
+        	}
+        }
+        else if (op.equals(Op.NOT_EQUALS)) {
+        	selectivity = (total_tuples - (h/w))/ (double) this.total_tuples;
+        }
+        else { // must be a range predicate
+        	double b_f = h/ (double) total_tuples;
+    		double b_right = min + (bucket_interval * (bucketno+1));
+    		double b_part = (b_right -1 - v) / w;
+    		if (bucketno == buckets - 1) {
+    			b_part = (max - v) / w;
+    		}
+    		double b_selectivity = b_f * b_part;
+        	
+    		if (op.equals(Op.GREATER_THAN) || op.equals(Op.GREATER_THAN_OR_EQ)) {	
+        		double sum_selectivity = 0;
+        		int start_index = bucketno + 1;
+        		if (start_index < 0) start_index = 0;
+        		for (int i = start_index; i < buckets; i++){
+        			double h_b = bucketlist[i];
+        			sum_selectivity += h_b / total_tuples; 
+        		}
+        		selectivity = b_selectivity + sum_selectivity; 
+        		if (op.equals(Op.GREATER_THAN_OR_EQ)) {
+        			if (v == max) {
+        				selectivity = (h/w) / (double) this.total_tuples;
+        			}
+        			else if (v == min) {
+        				selectivity = 1;
+        			}
+        			else selectivity = selectivity + (h/w) / (double) this.total_tuples;
+        		}
+
+        	}
+        	else { // must be less than or less than or equal to
+        		double sum_selectivity = 0;
+        		int start_index = 0;
+        		if (bucketno > buckets) {
+        			bucketno = buckets;
+        		}
+        		for (int i = 0; i < bucketno; i++) {
+        			double h_b = bucketlist[i];
+        			sum_selectivity += h_b / total_tuples;
+        		}
+        		selectivity = b_selectivity + sum_selectivity;
+        		if (op.equals(Op.LESS_THAN_OR_EQ)){
+        			if (v == min) {
+        				selectivity = (h/w) / (double) this.total_tuples;
+        			}
+        			else if (v == max) {
+        				selectivity = 1;
+        			}
+        			else selectivity = selectivity + (h/w) / (double) this.total_tuples;
         		}
         	}
-        	selectivity = (h / w)/total_tuples;
-        	return selectivity;
         }
-        return -1.0;
+        
+        
+    	return selectivity;
     }
 
     /**
      * @return A string describing this histogram, for debugging purposes
      */
     public String toString() {
-        // some code goes here
-        return null;
+        String to_return = "max:" + this.max + " min: " + this.min;
+        for (int i = 0; i < buckets; i++) {
+        	to_return += " bucket # " + i + ":" + bucketlist[i] + ";";
+        }
+        return to_return;
     }
 }

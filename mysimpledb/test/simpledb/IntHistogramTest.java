@@ -236,7 +236,6 @@ public class IntHistogramTest {
         h.addValue(3);
         h.addValue(3);
         h.addValue(10);
-
         Assert.assertEquals(3.0/4.0 * 0.5 + 1.0/4.0, h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 4), TOLERANCE);
         Assert.assertEquals(1.0/4.0, h.estimateSelectivity(Op.GREATER_THAN_OR_EQ, 9), TOLERANCE);
     }
