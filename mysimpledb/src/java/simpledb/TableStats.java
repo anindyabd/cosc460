@@ -62,6 +62,14 @@ public class TableStats {
      * histograms.
      */
     static final int NUM_HIST_BINS = 100;
+    
+    int ioCostPerPage = IOCOSTPERPAGE;
+    int nopages;
+	int numtuples;
+	TupleDesc td;
+	HashMap<Integer, Integer> values;
+	HashMap<String, IntHistogram> inthistograms;
+	HashMap<String, StringHistogram> stringhistograms;
 
     /**
      * Create a new TableStats object, that keeps track of statistics on each
@@ -79,8 +87,137 @@ public class TableStats {
         // You should try to do this reasonably efficiently, but you don't
         // necessarily have to (for example) do everything
         // in a single scan of the table.
-        // some code goes here
-    }
+    	this.ioCostPerPage = ioCostPerPage;
+		values = new HashMap<Integer, Integer>();
+		inthistograms = new HashMap<String, IntHistogram>();
+		stringhistograms = new HashMap<String, StringHistogram>();
+		HeapFile db = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
+		nopages = db.numPages();
+		td = db.getTupleDesc();
+		int numfields = td.numFields();
+		int count = 0;
+		int distinctcount;
+		int min;
+		int max;
+		for (int i = 0; i < numfields; i++)
+		{
+			distinctcount = 0;
+			String fieldname = td.getFieldName(i);
+			if(td.getFieldType(i) == Type.INT_TYPE){
+				DbFileIterator iter = db.iterator(new TransactionId());
+				HashSet<IntField> calculatedistinct = new HashSet<IntField>();
+				try {
+					iter.open();
+					if(iter.hasNext()){
+						IntField field = (IntField) iter.next().getField(i);
+						min = field.getValue();
+						max = min;
+						calculatedistinct.add(field);
+						count = 1;
+						distinctcount = 1;
+					}
+					else
+					{
+						throw new RuntimeException("Empty Table!");
+					}
+					while(iter.hasNext())
+					{
+						IntField field = (IntField) iter.next().getField(i);
+						int value = field.getValue();
+						count++;
+						if (value > max)
+						{
+							max = value;
+						}
+						if (value < min)
+						{
+							min = value;
+						}
+						if (!calculatedistinct.contains(field))
+						{
+							distinctcount++;
+							calculatedistinct.add(field);
+						}
+					}
+					inthistograms.put(fieldname, new IntHistogram(NUM_HIST_BINS, min, max));
+					numtuples = count;
+					values.put(Integer.valueOf(i), Integer.valueOf(distinctcount));
+					iter.close();
+				} catch (DbException | TransactionAbortedException e) {
+					e.printStackTrace();
+				}
+			}
+			else
+			{
+				DbFileIterator iter = db.iterator(new TransactionId());
+				HashSet<StringField> calculatedistinct = new HashSet<StringField>();
+				try {
+					iter.open();
+					if(iter.hasNext())
+					{
+						StringField field = (StringField) iter.next().getField(i);
+						calculatedistinct.add(field);
+						count = 1;
+						distinctcount = 1;
+					}
+					else
+					{
+						throw new RuntimeException("Empty Table!");
+					}
+					while(iter.hasNext())
+					{
+						StringField field = (StringField) iter.next().getField(i);
+						count++;
+						if (!calculatedistinct.contains(field))
+						{
+							distinctcount++;
+							calculatedistinct.add(field);
+						}
+					} 
+				stringhistograms.put(fieldname, new StringHistogram(NUM_HIST_BINS));
+				numtuples = count;
+				values.put(Integer.valueOf(i), Integer.valueOf(distinctcount));
+				iter.close();
+				}
+				catch (DbException | TransactionAbortedException e) {
+					e.printStackTrace();
+				}
+			}
+			DbFileIterator iter = db.iterator(new TransactionId());
+			try {
+				if(td.getFieldType(i) == Type.INT_TYPE)
+				{
+					iter.open();
+					while(iter.hasNext())
+					{
+						IntField field = (IntField) iter.next().getField(i);
+						int value = field.getValue();
+						inthistograms.get(fieldname).addValue(value);
+					}
+					iter.close();
+				}
+				else
+				{
+					iter.open();
+					while(iter.hasNext())
+					{
+						StringField field = (StringField) iter.next().getField(i);
+						String value = field.getValue();
+						stringhistograms.get(fieldname).addValue(value);
+					}
+					iter.close();
+				}
+			} catch (DbException | TransactionAbortedException e) {
+				e.printStackTrace();
+			}
+			
+			
+			
+		}
+	}    	
+    	
+    	
+	
 
     /**
      * Estimates the cost of sequentially scanning the file, given that the cost
@@ -95,9 +232,8 @@ public class TableStats {
      * @return The estimated cost of scanning the table.
      */
     public double estimateScanCost() {
-        // some code goes here
-        return 0;
-    }
+    	return nopages * ioCostPerPage; 
+   }
 
     /**
      * This method returns the number of tuples in the relation, given that a
@@ -108,8 +244,10 @@ public class TableStats {
      * selectivityFactor
      */
     public int estimateTableCardinality(double selectivityFactor) {
-        // some code goes here
-        return 0;
+    	if (selectivityFactor > 0 && selectivityFactor < (1/numtuples)){
+    		return numtuples;
+    	}
+    	return (int) Math.ceil(numtuples*selectivityFactor);
     }
 
     /**
@@ -125,8 +263,7 @@ public class TableStats {
      * @return The number of distinct values of the field.
      */
     public int numDistinctValues(int field) {
-        // some code goes here
-        throw new UnsupportedOperationException("implement me");
+    	return values.get(field);
 
     }
 
@@ -141,8 +278,20 @@ public class TableStats {
      * predicate
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-        // some code goes here
-        return 1.0;
+    	if(td.getFieldType(field) == Type.INT_TYPE){
+    		if(constant.getType() != Type.INT_TYPE){
+    			throw new RuntimeException("Constant type does not match predicate field type");
+    		}
+    		return inthistograms.get(td.getFieldName(field)).estimateSelectivity(op, ((IntField)constant).getValue());
+    	}
+    	else{
+    		if(constant.getType() != Type.STRING_TYPE){
+    			throw new RuntimeException("Constant type does not match predicate field type");
+    		}
+    		return stringhistograms.get(td.getFieldName(field)).estimateSelectivity(op, ((StringField)constant).getValue());	
+    	}
     }
 
-}
+    }
+
+

@@ -79,7 +79,7 @@ public class Catalog {
     public int getTableId(String name) throws NoSuchElementException {
         boolean idfound = false;
         int id = -1;
-    	for (int i = 0; i < this.tablemap.size(); i++){
+    	for (int i = 0; i < count; i++){
         	if (tablenamelist.get(i).equalsIgnoreCase(name)){
         		id = tableidlist.get(i);
         		idfound = true;

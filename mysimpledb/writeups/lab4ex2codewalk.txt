@@ -20,14 +20,19 @@ Walk thru 2: simpledb.Parser.processNextStatement()
 
 Walk thru 3: simpledb.Parser.handleQueryStatement()
 
-	<fill this in>	
+    This method handles queries. It creates a new instance of the Query class called `query`, and sets its physical and logical plans, using query.setPhysicalPlan(physicalPlan) and query.setLogicalPlan(lp). lp is an instance of the LogicalPlan class, obtained by doing Parser.parseQueryLogicalPlan(tId, s). physicalPlan is an instance of DbIterator, obtained by doing lp.physicalPlan(tId, TableStats.getStatsMap(), explain). The call TableStats.getStatsMap() returns a HashMap that contains statistics about the underlying tables.
+    If a physical plan is available, the method checks to see if two classes are available, using Java Reflection.
+    The two classes it checks for are OperatorCardinality and QueryPlanVisualizer. If OperatorCardinality is avalaible,
+    it updates the cardinality by calling OperatorCardinality.updateOperatorCardinality(). If QueryPlanVisualizer is available, the query plan is printed by using QueryPlanVisualizer.printQueryPlanTree.
+    At the end the method returns `query`.
 
 Walk thru 4: simpledb.Parser.parseQueryLogicalPlan()
 
-	<fill this in>
-
 	Note: this method is rather long and complex.  Your walk thru should focus
 	on the high-level ideas.  Specifically, explain how SQL query is processed to construct the LogicalPlan.  
+
+    This method generates a logical plan for the query. It instantiates a new instance of the LogicalPlan class, lp. 
+    First it parses the FROM clause and gets the tables that are referred to in that clause. It adds those tables to the LogicalPlan using lp.addScan(). Then it parses the WHERE clause, calling Parser.processExpression() to process the expression obtained from the WHERE clause. In processExpression(), if there's a join, the join is added to the lp with lp.addJoin() and if there's a filter that is added to the lp with lp.addFilter(). Finally it parses the SELECT clause and adds the fields to project on to the LogicalPlan instance using lp.addProjectField(). After all these the LogicalPlan (lp) is returned. 
  
 Walk thru 5: simpledb.LogicalPlan.physicalPlan()
 
@@ -37,27 +42,35 @@ Walk thru 5: simpledb.LogicalPlan.physicalPlan()
 		- statsMap
 		- subplanMap
 
-	<fill this in>
+    This method generates the physical plan to be used to execute the query.
+	First, the method opens an iterator over the vector LogicalScanNodes in this LogicalPlan. (LogicalScanNodes are names of tables with their aliases.) Then it opens a SeqScan on each of the LogicalScanNodes in the iterator. Each of those SeqScans are put in the HashMap subplanMap, along with the aliases of the tables (which are the keys). Also, the name of each table and the corresponding statistics are put into statsMap (the stats are obtained from the HashMap baseTableStats, which was passed in as an argument). And in the filterSelectivities map, it puts in the table aliases and 1.0 (for now).
+
+    Now the method opens an iterator on our vector of LogicalFilterNodes (this vector was populated when we did lp.addFilter in Parser.processExpression()). Then, the method replaces each of the SeqScans (or other operators) associated with each of the tables in the subplanMap with the Filter operators on the tables. Then the selectivity for the filter operations is estimated for each of the tables (using TableStats.estimateSelectivity()), and the results put in the filterSelectivities map. 
+
+    Then a new instance of JoinOptimizer is created, and the orderJoins() method is called on it, to decide the order that the multiple join operations should be carried out in. The join order is decided using the statistics in the statsMap map and the filterSelectivities map. We open an iterator on our LogicalJoinNodes in the `joins` vector and go through them. The equivmap map stores information about which tables should be joined.
+
+    At the end we walk through the select list, to determine order in which to project output fields.
 
 Walk thru 6: simpledb.JoinOptimizer.orderJoins()
-
-	<fill this in>
+        
+        This is called inside LogicalPlan.physicalPlan(). It returns a vector of LogicalJoinNodes in an order which minimizes cost of doing the joins.
 
 Walk thru 7: JoinOptimizer.computeCostAndCardOfSubplan()
-
-	<fill this in>
+    
+    This method figures out and caches the lowest cost subplans.
+    
 
 Walk thru 8: JoinOptimizer.estimateJoinCost()
 
-	<fill this in>
+	This method estimates the cost of a join represented by the LogicalJoinNode j. It uses the estimated costs and cardinalities of the left and right hand sides of the query to estimate the cost. 
 
 Walk thru 9: JoinOptimizer.estimateJoinCardinality()
 
-	<fill this in>
+	This method estimates the cardinality (i.e. size) of the join by calling JoinOptimizer.estimateTableJoinCardinality().
 
 Walk thru 10 query.execute()
 	
 	Note: This is called inside simpledb.Parser.processNextStatement().  Refer back to Walk thru 2.
 
-	<fill this in>
+    This executes the query. This Query instance has a logical plan and a physical plan set in Parser.handleQueryStatement(). The query instance has a DbIterator called op which represents the plan to be executed; this was obtained from the physical plan. First the method prints out the names of each of the table headings, i.e. the field names in the TupleDesc for the output relation. Then the DbIterator op is opened using this.start() and then all the tuples that are scanned from the DbIterator are printed. In the end the number of printed rows is printed and the iterator is closed.
 
