@@ -62,14 +62,14 @@ public class TableStats {
      * histograms.
      */
     static final int NUM_HIST_BINS = 100;
-    
     int ioCostPerPage = IOCOSTPERPAGE;
-    int nopages;
-	int numtuples;
-	TupleDesc td;
-	HashMap<Integer, Integer> values;
-	HashMap<String, IntHistogram> inthistograms;
-	HashMap<String, StringHistogram> stringhistograms;
+    int tableid;
+    int numpages;
+    int totaltuples;
+    TupleDesc td;
+	HashMap<String, IntHistogram> intHistogramMap;
+	HashMap<String, StringHistogram> stringHistogramMap;
+	HashMap<Integer, HashSet<Object>> distinctValsMap;
 
     /**
      * Create a new TableStats object, that keeps track of statistics on each
@@ -80,144 +80,125 @@ public class TableStats {
      *                      sequential-scan IO and disk seeks.
      */
     public TableStats(int tableid, int ioCostPerPage) {
-        // For this function, you'll have to get the
-        // DbFile for the table in question,
-        // then scan through its tuples and calculate
-        // the values that you need.
-        // You should try to do this reasonably efficiently, but you don't
-        // necessarily have to (for example) do everything
-        // in a single scan of the table.
+    	this.tableid = tableid;
     	this.ioCostPerPage = ioCostPerPage;
-		values = new HashMap<Integer, Integer>();
-		inthistograms = new HashMap<String, IntHistogram>();
-		stringhistograms = new HashMap<String, StringHistogram>();
-		HeapFile db = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
-		nopages = db.numPages();
-		td = db.getTupleDesc();
-		int numfields = td.numFields();
-		int count = 0;
-		int distinctcount;
-		int min;
-		int max;
-		for (int i = 0; i < numfields; i++)
-		{
-			distinctcount = 0;
-			String fieldname = td.getFieldName(i);
-			if(td.getFieldType(i) == Type.INT_TYPE){
-				DbFileIterator iter = db.iterator(new TransactionId());
-				HashSet<IntField> calculatedistinct = new HashSet<IntField>();
-				try {
-					iter.open();
-					if(iter.hasNext()){
-						IntField field = (IntField) iter.next().getField(i);
-						min = field.getValue();
-						max = min;
-						calculatedistinct.add(field);
-						count = 1;
-						distinctcount = 1;
+    	HeapFile file = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
+    	HashMap<String, Object[]> minmax = findminandmax(file);
+    	this.numpages = file.numPages();
+    	this.td = file.getTupleDesc();
+    	TransactionId tid = new TransactionId();
+    	DbFileIterator iterator = file.iterator(tid); 
+    	this.intHistogramMap = new HashMap<String, IntHistogram>();
+    	this.stringHistogramMap = new HashMap<String, StringHistogram>();
+    	this.distinctValsMap = new HashMap<Integer, HashSet<Object>>();
+    	this.totaltuples = 0;
+    	try {
+    		iterator.open();
+			if (!iterator.hasNext()) {
+				throw new RuntimeException("The table is empty.");
+			}
+			while(iterator.hasNext()){
+				Tuple t = iterator.next();
+				totaltuples++;
+				for (int i = 0; i < td.numFields(); i++) {
+					HashSet<Object> newset;
+					if (distinctValsMap.get(i) == null) {
+						newset = new HashSet<Object>();
 					}
-					else
-					{
-						throw new RuntimeException("Empty Table!");
+					else {
+						newset = distinctValsMap.get(i);
 					}
-					while(iter.hasNext())
-					{
-						IntField field = (IntField) iter.next().getField(i);
-						int value = field.getValue();
-						count++;
-						if (value > max)
-						{
-							max = value;
+					newset.add(t.getField(i));
+					distinctValsMap.put(i, newset);
+					String fieldname = t.getTupleDesc().getFieldName(i);
+					if (t.getField(i).getType().equals(Type.INT_TYPE)) {
+						IntField thisfield = (IntField) t.getField(i);
+						int thisint = thisfield.getValue();
+						if (intHistogramMap.get(fieldname) == null) {
+							int min = (int) minmax.get(fieldname)[0];
+							int max = (int) minmax.get(fieldname)[1];
+							IntHistogram thisFieldHist = new IntHistogram(NUM_HIST_BINS, min, max);
+							thisFieldHist.addValue(thisint);
+							intHistogramMap.put(fieldname, thisFieldHist);
 						}
-						if (value < min)
-						{
-							min = value;
-						}
-						if (!calculatedistinct.contains(field))
-						{
-							distinctcount++;
-							calculatedistinct.add(field);
+						else {
+							IntHistogram thisFieldHist = intHistogramMap.get(fieldname);
+							thisFieldHist.addValue(thisint);
+							intHistogramMap.put(fieldname, thisFieldHist);
 						}
 					}
-					inthistograms.put(fieldname, new IntHistogram(NUM_HIST_BINS, min, max));
-					numtuples = count;
-					values.put(Integer.valueOf(i), Integer.valueOf(distinctcount));
-					iter.close();
-				} catch (DbException | TransactionAbortedException e) {
-					e.printStackTrace();
+					else {
+						if (stringHistogramMap.get(fieldname) == null) {
+							StringHistogram thisFieldHist = new StringHistogram(NUM_HIST_BINS);
+						}
+						else {
+							StringField thisfield = (StringField) t.getField(i);
+							String thisstring = thisfield.getValue();
+							StringHistogram thisFieldHist = stringHistogramMap.get(fieldname);
+							thisFieldHist.addValue(thisstring);
+							stringHistogramMap.put(fieldname, thisFieldHist);
+						}
+					}
+					
 				}
 			}
-			else
-			{
-				DbFileIterator iter = db.iterator(new TransactionId());
-				HashSet<StringField> calculatedistinct = new HashSet<StringField>();
-				try {
-					iter.open();
-					if(iter.hasNext())
-					{
-						StringField field = (StringField) iter.next().getField(i);
-						calculatedistinct.add(field);
-						count = 1;
-						distinctcount = 1;
-					}
-					else
-					{
-						throw new RuntimeException("Empty Table!");
-					}
-					while(iter.hasNext())
-					{
-						StringField field = (StringField) iter.next().getField(i);
-						count++;
-						if (!calculatedistinct.contains(field))
-						{
-							distinctcount++;
-							calculatedistinct.add(field);
-						}
-					} 
-				stringhistograms.put(fieldname, new StringHistogram(NUM_HIST_BINS));
-				numtuples = count;
-				values.put(Integer.valueOf(i), Integer.valueOf(distinctcount));
-				iter.close();
-				}
-				catch (DbException | TransactionAbortedException e) {
-					e.printStackTrace();
-				}
-			}
-			DbFileIterator iter = db.iterator(new TransactionId());
-			try {
-				if(td.getFieldType(i) == Type.INT_TYPE)
-				{
-					iter.open();
-					while(iter.hasNext())
-					{
-						IntField field = (IntField) iter.next().getField(i);
-						int value = field.getValue();
-						inthistograms.get(fieldname).addValue(value);
-					}
-					iter.close();
-				}
-				else
-				{
-					iter.open();
-					while(iter.hasNext())
-					{
-						StringField field = (StringField) iter.next().getField(i);
-						String value = field.getValue();
-						stringhistograms.get(fieldname).addValue(value);
-					}
-					iter.close();
-				}
-			} catch (DbException | TransactionAbortedException e) {
-				e.printStackTrace();
-			}
-			
-			
-			
+			iterator.rewind();
+			iterator.close();
+		} catch (DbException | TransactionAbortedException e) {
+			e.printStackTrace();
 		}
-	}    	
     	
+	}
+    
+    private HashMap<String, Object[]> findminandmax(HeapFile file) {
+    	TupleDesc td = file.getTupleDesc();
+    	TransactionId tid = new TransactionId();
+    	DbFileIterator iterator = file.iterator(tid);
+    	HashMap<String, Object[]> returnmap = new HashMap<String, Object[]>();
+    	try {
+    		iterator.open();
+			if (!iterator.hasNext()) {
+				throw new RuntimeException("The table is empty.");
+			}
+			while(iterator.hasNext()){
+				Tuple t = iterator.next();
+				for (int i = 0; i < td.numFields(); i++) {
+					String fieldname = t.getTupleDesc().getFieldName(i);
+					if (t.getField(i).getType().equals(Type.INT_TYPE)) {
+						IntField thisfield = (IntField) t.getField(i);
+						int thisint = thisfield.getValue();
+						if (returnmap.get(fieldname) == null) {
+							Object[] minmax = {thisint, thisint};
+							returnmap.put(fieldname, minmax);
+						}
+						else {
+							Object[] minmax = returnmap.get(fieldname);
+							int min = (int) minmax[0];
+							int max = (int) minmax[1];
+							if (thisint < min) {
+								min = thisint;
+							}
+							if (thisint > max) {
+								max = thisint;
+							}
+							minmax[0] = min;
+							minmax[1] = max;
+							returnmap.put(fieldname, minmax);
+						}
+					}
+					
+				}
+			}
+			iterator.rewind();
+			iterator.close();
+			return returnmap;
+    	}
+    	catch (DbException | TransactionAbortedException e) {
+			e.printStackTrace();
+		}
+    	return null;
+    }
     	
-	
 
     /**
      * Estimates the cost of sequentially scanning the file, given that the cost
@@ -232,7 +213,7 @@ public class TableStats {
      * @return The estimated cost of scanning the table.
      */
     public double estimateScanCost() {
-    	return nopages * ioCostPerPage; 
+    	return numpages * ioCostPerPage; 
    }
 
     /**
@@ -244,11 +225,9 @@ public class TableStats {
      * selectivityFactor
      */
     public int estimateTableCardinality(double selectivityFactor) {
-    	if (selectivityFactor > 0 && selectivityFactor < (1/numtuples)){
-    		return numtuples;
-    	}
-    	return (int) Math.ceil(numtuples*selectivityFactor);
+    	return (int) Math.ceil(totaltuples*selectivityFactor);
     }
+
 
     /**
      * This method returns the number of distinct values for a given field.
@@ -263,7 +242,7 @@ public class TableStats {
      * @return The number of distinct values of the field.
      */
     public int numDistinctValues(int field) {
-    	return values.get(field);
+    	return distinctValsMap.get(field).size();
 
     }
 
@@ -277,21 +256,29 @@ public class TableStats {
      * @return The estimated selectivity (fraction of tuples that satisfy) the
      * predicate
      */
-    public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
-    	if(td.getFieldType(field) == Type.INT_TYPE){
+   public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
+    	if(td.getFieldType(field).equals(Type.INT_TYPE)){
     		if(constant.getType() != Type.INT_TYPE){
     			throw new RuntimeException("Constant type does not match predicate field type");
     		}
-    		return inthistograms.get(td.getFieldName(field)).estimateSelectivity(op, ((IntField)constant).getValue());
+    		String fieldname = td.getFieldName(field);
+    		IntField constantfield = (IntField) constant;
+    		int constantvalue = constantfield.getValue();
+    		double selectivity = intHistogramMap.get(fieldname).estimateSelectivity(op, constantvalue);
+    		return selectivity;
     	}
     	else{
     		if(constant.getType() != Type.STRING_TYPE){
     			throw new RuntimeException("Constant type does not match predicate field type");
     		}
-    		return stringhistograms.get(td.getFieldName(field)).estimateSelectivity(op, ((StringField)constant).getValue());	
+    		String fieldname = td.getFieldName(field);
+    		StringField constantfield = (StringField) constant;
+    		String constantvalue = constantfield.getValue();
+    		double selectivity = stringHistogramMap.get(fieldname).estimateSelectivity(op, constantvalue);
+    		return selectivity;
     	}
-    }
+   }
 
-    }
+    } 
 
 

@@ -248,8 +248,6 @@ public class BufferPool {
      */
     private synchronized void evictPage() throws DbException, IOException {
         Page toevict = timemap.get(timemap.firstKey());
-        System.out.println(timemap.firstKey());
-        System.out.println(pagemap.get(toevict.getId()));
         Page localcopy = pagemap.get(toevict.getId());
         this.flushPage(localcopy.getId());
         pagemap.remove(localcopy.getId());
