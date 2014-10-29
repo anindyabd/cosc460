@@ -83,7 +83,7 @@ public class TableStats {
     	this.tableid = tableid;
     	this.ioCostPerPage = ioCostPerPage;
     	HeapFile file = (HeapFile) Database.getCatalog().getDatabaseFile(tableid);
-    	HashMap<String, Object[]> minmax = findminandmax(file);
+    	HashMap<String, int[]> minmax = findminandmax(file);
     	this.numpages = file.numPages();
     	this.td = file.getTupleDesc();
     	TransactionId tid = new TransactionId();
@@ -146,17 +146,20 @@ public class TableStats {
 			}
 			iterator.rewind();
 			iterator.close();
-		} catch (DbException | TransactionAbortedException e) {
+		} catch (DbException e) {
 			e.printStackTrace();
-		}
+		} catch (TransactionAbortedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
     	
 	}
     
-    private HashMap<String, Object[]> findminandmax(HeapFile file) {
+    private HashMap<String, int[]> findminandmax(HeapFile file) {
     	TupleDesc td = file.getTupleDesc();
     	TransactionId tid = new TransactionId();
     	DbFileIterator iterator = file.iterator(tid);
-    	HashMap<String, Object[]> returnmap = new HashMap<String, Object[]>();
+    	HashMap<String, int[]> returnmap = new HashMap<String, int[]>();
     	try {
     		iterator.open();
 			if (!iterator.hasNext()) {
@@ -170,11 +173,11 @@ public class TableStats {
 						IntField thisfield = (IntField) t.getField(i);
 						int thisint = thisfield.getValue();
 						if (returnmap.get(fieldname) == null) {
-							Object[] minmax = {thisint, thisint};
+							int[] minmax = {thisint, thisint};
 							returnmap.put(fieldname, minmax);
 						}
 						else {
-							Object[] minmax = returnmap.get(fieldname);
+							int[] minmax = returnmap.get(fieldname);
 							int min = (int) minmax[0];
 							int max = (int) minmax[1];
 							if (thisint < min) {
@@ -195,9 +198,12 @@ public class TableStats {
 			iterator.close();
 			return returnmap;
     	}
-    	catch (DbException | TransactionAbortedException e) {
+    	catch (DbException e) {
 			e.printStackTrace();
 		}
+    	catch (TransactionAbortedException e) {
+    		e.printStackTrace();
+    	}
     	return null;
     }
     	

@@ -162,9 +162,14 @@ public class HeapFile implements DbFile {
 		try {
 			it = new HeapFileIterator(tid, this.getId(), this.numPages());
 		     return it;
-		} catch (TransactionAbortedException | DbException | IOException e) {
+		} catch (TransactionAbortedException e) {
+			e.printStackTrace();
+		} catch (DbException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
 		return null;
     }
     

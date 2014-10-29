@@ -110,11 +110,7 @@ public class JoinOptimizer {
             // You do not need to implement proper support for these for Lab 4.
             return card1 + cost1 + cost2;
         } else {
-            // Insert your code here.
-            // HINT: You may need to use the variable "j" if you implemented
-            // a join algorithm that's more complicated than a basic
-            // nested-loops join.
-            return -1.0;
+            return cost1 + (card1*cost2);
         }
     }
 
@@ -154,6 +150,7 @@ public class JoinOptimizer {
                                                    Map<String, Integer> tableAliasToId) {
         int card = 1;
         // some code goes here
+        
         return card <= 0 ? 1 : card;
     }
 
