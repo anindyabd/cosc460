@@ -78,28 +78,18 @@ public class BufferPool {
         if (pagemap.containsKey(pid)){
         	Long time = System.currentTimeMillis();
         	Page page = pagemap.get(pid);
-        	timemap.put(time, page);
         	return page;
         }
-        else if (pagemap.size() < this.numPages) {
-        	int tableid = pid.getTableId();
-        	DbFile dbfile = Database.getCatalog().getDatabaseFile(tableid);
-        	this.pagemap.put(pid, dbfile.readPage(pid));
-        	Page page = pagemap.get(pid);
-        	Long time = System.currentTimeMillis();
-        	timemap.put(time, page);
-        	return page;
-        }
-        else {
+        if (pagemap.size() > this.numPages) {
         	this.evictPage();
-        	int tableid = pid.getTableId();
-        	DbFile dbfile = Database.getCatalog().getDatabaseFile(tableid);
-        	this.pagemap.put(pid, dbfile.readPage(pid));
-        	Page page = pagemap.get(pid);
-        	Long time = System.currentTimeMillis();
-        	timemap.put(time, page);
-        	return page;
         }
+        int tableid = pid.getTableId();
+        DbFile dbfile = Database.getCatalog().getDatabaseFile(tableid);
+        this.pagemap.put(pid, dbfile.readPage(pid));
+        Page page = pagemap.get(pid);
+        Long time = System.currentTimeMillis();
+        timemap.put(time, page);
+        return page;
     }
 
     /**
@@ -249,11 +239,12 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException, IOException {
         Page toevict = timemap.get(timemap.firstKey());
         Page localcopy = pagemap.get(toevict.getId());
-        this.flushPage(localcopy.getId());
+        if (localcopy.isDirty() != null) {
+        	this.flushPage(localcopy.getId());
+        }
         pagemap.remove(localcopy.getId());
         timemap.remove(timemap.firstKey());
         this.numPages--;
-        
     }
 
 }

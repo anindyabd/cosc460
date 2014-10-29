@@ -158,8 +158,14 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
     	
-        HeapFileIterator it = new HeapFileIterator(tid, this.getId(), this.numPages());
-        return it;
+        HeapFileIterator it;
+		try {
+			it = new HeapFileIterator(tid, this.getId(), this.numPages());
+		     return it;
+		} catch (TransactionAbortedException | DbException | IOException e) {
+			e.printStackTrace();
+		}
+		return null;
     }
     
 
@@ -171,29 +177,30 @@ class HeapFileIterator implements DbFileIterator {
 	private HeapPage currpage;
 	private myIterator heappageiterator;
 	
-	public HeapFileIterator(TransactionId tid, int heapfileid, int numPages){
+	public HeapFileIterator(TransactionId tid, int heapfileid, int numPages) throws TransactionAbortedException, DbException, IOException{
 			this.tid = tid;
 			this.heapfileid = heapfileid;
 			this.numPages = numPages;
 			pgNo = 0;
+			
 	}
 	
 	public void open() throws TransactionAbortedException, DbException{
 		Permissions perm = Permissions.READ_ONLY;
 		HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
-		BufferPool bufferpool = Database.getBufferPool();
 		HeapPage page;
 		try {
-			page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
+			page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
 			currpage = page;
 			heappageiterator = (myIterator) currpage.iterator();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		
+		
 	}
 	
-	public boolean hasNext(){
+	public boolean hasNext() throws DbException, TransactionAbortedException{
 		if (currpage == null) return false;
 		if (heappageiterator.hasNext()){
 			return true;
@@ -202,23 +209,17 @@ class HeapFileIterator implements DbFileIterator {
 			return false;
 		}
 		this.pgNo++;
-		Permissions perm = Permissions.READ_ONLY;
+		Permissions perm = Permissions.READ_WRITE;
 		HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
 		HeapPage page;
+
 		try {
 			page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
 			currpage = page;
 			heappageiterator = (myIterator) currpage.iterator();
-			
+
 			return heappageiterator.hasNext();	
-		}
-		catch (DbException e) {
-			System.out.println("IOException");
-		} catch (TransactionAbortedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return false;
@@ -231,26 +232,7 @@ class HeapFileIterator implements DbFileIterator {
 		if (heappageiterator.hasNext()){
 			return heappageiterator.next();
 		}
-		else {
-			this.pgNo++;
-			Permissions perm = Permissions.READ_ONLY;
-			HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
-			BufferPool bufferpool = Database.getBufferPool();
-			HeapPage page;
-			try {
-				page = (HeapPage)bufferpool.getPage(tid, heappageid, perm);
-				currpage = page;
-				heappageiterator = (myIterator) currpage.iterator();
-				
-				return heappageiterator.next();
-				
-			} catch (IOException e) {
-				e.printStackTrace();
-				System.out.println("IOException");
-				return null;
-			}
-			
-		}
+		else return null;
 	}
 	
 	public void rewind() throws TransactionAbortedException, DbException{

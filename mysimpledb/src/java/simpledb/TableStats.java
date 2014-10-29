@@ -128,12 +128,14 @@ public class TableStats {
 						}
 					}
 					else {
+						StringField thisfield = (StringField) t.getField(i);
+						String thisstring = thisfield.getValue();
 						if (stringHistogramMap.get(fieldname) == null) {
 							StringHistogram thisFieldHist = new StringHistogram(NUM_HIST_BINS);
+							thisFieldHist.addValue(thisstring);
+							stringHistogramMap.put(fieldname, thisFieldHist);
 						}
 						else {
-							StringField thisfield = (StringField) t.getField(i);
-							String thisstring = thisfield.getValue();
 							StringHistogram thisFieldHist = stringHistogramMap.get(fieldname);
 							thisFieldHist.addValue(thisstring);
 							stringHistogramMap.put(fieldname, thisFieldHist);
