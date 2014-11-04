@@ -10,20 +10,58 @@ and a.fname='Ginger' and a.lname='Rogers';
 
 Query 1 optimizer's plan:
 
-<fill in here>
+                                     π(d.fname,d.lname),card:1
+                                                 |
+                                                 ⨝(m.did=d.id),card:1
+                              ___________________|____________________
+                              |                                      |
+                              ⨝(c.mid=m.mid),card:1                  |
+                ______________|_______________                       |
+                |                            |                       |
+                ⨝(a.id=c.pid),card:1         |                       |
+  ______________|______________              |                       |
+  |                           |              |                       |
+  σ(a.lname=Rogers),card:1    |              |                       |
+  |                           |              |                       |
+  σ(a.fname=Ginger),card:1    |              |                       |
+  |                           |            scan(Movie_Director m)    |
+scan(Actor a)               scan(Casts c)                          scan(Director d)
 
 Query 1 plan explanation:
 
-<fill in here>
+There are selections on the Actor relation which we push down, so Actor is taken as the outer relation. As we are 
+doing pipelining, pushing selections on inner relations doesn't help much, but pushing selections on outer relations reduces the cost, because the cardinality of the relation we get after applying the filter is lower and we read each tuple in the outer relation just once. After making that choice, there doesn't seem to be much of an option for the others; a needs to be joined with c, and then c needs to be joined with m, and m with d -- everything pretty much falls into place. 
+At each step the outer relation has cardinality 1 which helps keep the cost low for the joins.
 
 Query 2:
 
-<fill in here>
+select m.name, m.year
+from Movie m, Movie_Director r, Director d, Genre g
+where m.id=r.mid and m.id=r.mid and r.did=d.id and m.id=g.mid 
+and d.fname='Christopher' and g.genre='Comedy'; 
 
-Query 1 optimizer's plan:
+Query 2 optimizer's plan:
 
-<fill in here>
+                                            π(m.name,m.year),card:1
+                                                        |
+                                                        ⨝(m.id=g.mid),card:1
+                                      __________________|__________________
+                                      |                                   |
+                                      ⨝(r.mid=m.id),card:1                σ(g.genre=Comedy),card:1
+                  ____________________|_____________________              |
+                  |                                        |              |
+                  ⨝(d.id=r.did),card:1                     |              |
+  ________________|_________________                       |              |
+  |                                |                       |              |
+  σ(d.fname=Christopher),card:1    |                       |              |
+  |                                |                     scan(Movie m)    |
+scan(Director d)                 scan(Movie_Director r)                 scan(Genre g)
 
-Query 1 plan explanation:
 
-<fill in here>
+Query 2 plan explanation:
+
+Here we push the selection down on Director and make it the outermost relation for reasons similar to that outlined above.
+The other joins are pretty much a result of the where clause, similar to Query 1. 
+At each step of the way we ensure the cardinality is 1. Now, pushing the selection down on Genre also sets the cardinality
+of the output relation to be 1. But we take Director to be the outermost relation and not Genre because the cost of 
+scanning Director is greater, so we want to make sure we do that just once, which is achieved if it is the outer relation.

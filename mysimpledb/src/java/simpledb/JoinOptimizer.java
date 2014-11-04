@@ -148,8 +148,33 @@ public class JoinOptimizer {
                                                    String field2PureName, int card1, int card2, boolean t1pkey,
                                                    boolean t2pkey, Map<String, TableStats> stats,
                                                    Map<String, Integer> tableAliasToId) {
-        int card = 1;
-        // some code goes here
+    	int card = 1;
+        int table1id = tableAliasToId.get(table1Alias);
+        int table2id = tableAliasToId.get(table2Alias);
+        String table1name = Database.getCatalog().getTableName(table1id);
+        String table2name = Database.getCatalog().getTableName(table2id);
+        int field1index = Database.getCatalog().getTupleDesc(table1id).fieldNameToIndex(field1PureName);
+        int field2index = Database.getCatalog().getTupleDesc(table2id).fieldNameToIndex(field2PureName);
+        TableStats stats1 = stats.get(table1name);
+        int table1numdistinct = stats.get(table1name).numDistinctValues(field1index);
+        int table2numdistinct = stats.get(table2name).numDistinctValues(field2index);
+        int maxoftwo = Math.max(table1numdistinct, table2numdistinct);
+        if (joinOp.equals(Predicate.Op.EQUALS)) {
+        	card = (int) ((card1 * card2) / (double) maxoftwo);
+        	if (t1pkey == true && t2pkey == false) {
+        		if (card > card2) {
+        			card = card2;
+        		}
+        	}
+        	else if (t1pkey == false && t2pkey == true) {
+        		if (card > card1) {
+        			card = card1;
+        		}
+        	}
+        }
+        else {
+        	card = (int) ((card1 * card2)*(0.3));
+        }
         
         return card <= 0 ? 1 : card;
     }
@@ -205,13 +230,27 @@ public class JoinOptimizer {
             HashMap<String, TableStats> stats,
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
+    	PlanCache pc = new PlanCache();
+    	CostCard bestplan = new CostCard();
+    	for (int i = 1; i < joins.size() + 1; i++) { // first find best plan for single join, then for 2 joins, etc
+    		for (Set<LogicalJoinNode> s: enumerateSubsets(joins, i)){ // looking at a concrete subset of joins
+    			
+    			 bestplan = new CostCard();
+                 bestplan.cost = Double.MAX_VALUE; 
+                 for (LogicalJoinNode j : s) { // for s' in {all length i-1 subsets of s}
+                     CostCard cc = computeCostAndCardOfSubplan(stats, filterSelectivities, j, s, bestplan.cost, pc);
+                     if (cc != null) {
+                         bestplan = cc;
+                     }
+                 }
+                 pc.addPlan(s, bestplan.cost, bestplan.card, bestplan.plan);
+             }
+    		}
+        if(explain){
+            printJoins(bestplan.plan, pc, stats, filterSelectivities);
+        }
 
-        // See the Lab 4 writeup for some hints as to how this function
-        // should work.
-
-        // some code goes here
-        //Replace the following
-        return joins;
+        return bestplan.plan;
     }
 
     // ===================== Private Methods =================================

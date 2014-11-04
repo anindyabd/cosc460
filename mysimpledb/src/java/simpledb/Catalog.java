@@ -24,16 +24,16 @@ public class Catalog {
      * Creates a new, empty catalog.
      */
 	private HashMap<Integer, DbFile> tablemap;
-	private ArrayList<String> tablenamelist;
-	private ArrayList<String> pkeyFieldlist;
-	private ArrayList<Integer> tableidlist;
+	private HashMap<Integer, String> tableidtonamemap;
+	private HashMap<Integer, String> tableidtopkeymap;
+	private HashMap<String, Integer> tablenametoidmap;
 	private int count;
 	
     public Catalog() {
     	tablemap = new HashMap<Integer, DbFile>();
-    	tablenamelist = new ArrayList<String>();
-    	pkeyFieldlist = new ArrayList<String>();
-    	tableidlist = new ArrayList<Integer>();
+    	tableidtonamemap = new HashMap<Integer, String>();
+    	tableidtopkeymap = new HashMap<Integer, String>();
+    	tablenametoidmap = new HashMap<String, Integer>();
     	count = 0;
     }
 
@@ -49,9 +49,9 @@ public class Catalog {
      */
     public void addTable(DbFile file, String name, String pkeyField) {
         tablemap.put(file.getId(), file);
-        tablenamelist.add(name);
-        pkeyFieldlist.add(pkeyField);
-        tableidlist.add(file.getId());
+        tableidtonamemap.put(file.getId(), name);
+        tableidtopkeymap.put(file.getId(), pkeyField);
+        tablenametoidmap.put(name, file.getId());
         count++;
     }
 
@@ -78,17 +78,10 @@ public class Catalog {
      */
     public int getTableId(String name) throws NoSuchElementException {
         boolean idfound = false;
-        int id = -1;
-    	for (int i = 0; i < count; i++){
-        	if (tablenamelist.get(i).equalsIgnoreCase(name)){
-        		id = tableidlist.get(i);
-        		idfound = true;
-        		break;
-        	}
-        }
-    	if (idfound == false){
+    	if (tablenametoidmap.get(name) == null) {
     		throw new NoSuchElementException();
     	}
+    	int id = tablenametoidmap.get(name);
         return id;
     }
 
@@ -121,25 +114,16 @@ public class Catalog {
     }
 
     public String getPrimaryKey(int tableid) {
-        for (int i = 0; i < tableidlist.size(); i++){
-        	if (tableidlist.get(i) == tableid){
-        		return pkeyFieldlist.get(i);
-        	}
-        }
-        return null;
+        String returnstring = tableidtopkeymap.get(tableid);
+        return returnstring;
     }
 
     public Iterator<Integer> tableIdIterator() {
-        return tableidlist.iterator();
+        return tablemap.keySet().iterator();
     }
 
     public String getTableName(int id) {
-    	for (int i = 0; i < tableidlist.size(); i++){
-        	if (tableidlist.get(i) == id){
-        		return tablenamelist.get(i);
-        	}
-        }
-    	return null;
+    	return tableidtonamemap.get(id);
     }
 
     /**
@@ -150,8 +134,9 @@ public class Catalog {
     		return;
     	}
         this.tablemap.clear();
-        this.tablenamelist.clear();
-        this.pkeyFieldlist.clear();
+        this.tableidtonamemap.clear();
+        this.tableidtopkeymap.clear();
+        this.tablenametoidmap.clear();
         this.count = 0;
     }
 
