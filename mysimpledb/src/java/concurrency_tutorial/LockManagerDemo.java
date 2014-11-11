@@ -75,8 +75,8 @@ public class LockManagerDemo {
     static class LockManager {
         private boolean inUse = false;
 
-        public void acquireLock() {
-            boolean waiting = true;
+        public synchronized void acquireLock() {
+            /*boolean waiting = true;
             while (waiting) {
                 synchronized (this) {
                     // check if lock is available
@@ -89,13 +89,23 @@ public class LockManagerDemo {
                 if (waiting) {
                     try {
                         Thread.sleep(1);
+                    	//wait();
                     } catch (InterruptedException ignored) { }
                 }
+            }*/
+            while (inUse) {
+            	try {
+            		wait();
+            	}
+            	catch (InterruptedException e) { }
             }
+            
+            inUse = true;
         }
 
         public synchronized void releaseLock() {
             inUse = false;
+            notifyAll();
         }
     }
 }

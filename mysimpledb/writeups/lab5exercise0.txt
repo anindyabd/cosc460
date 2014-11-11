@@ -2,17 +2,38 @@ Your name(s):
 
 1. Explain how you modified SynchronizedThreads in exercise 1.
 
+I added the synchronized keyword to the increment() method in the Counter class.
+
 2. Briefly describe (1-2 sentences) an alternate implementation for exercise 1.
+
+Alternately we could add a synchronized statement in the run() method around the call for counter.increment(). 
+It would look like this:
+
+for (int i = 0; i < numIncrements; i++) {
+        synchronized(counter) {
+            counter.increment(name);
+    }
+}
 
 3. Exercise 2: Explain the deadlock that happens in Deadlock in terms of locks and threads waiting on locks. The two threads in this case are alphonse and gaston. 
 
 a) What objects are being locked? 
 
+The two Friend objects, Alphonse and Gaston, are locked.
+
 b) Who has what locks? 
+
+The threads Alphonse and Gaston, have the locks on the two Friend objects.
 
 c) How does deadlock occur?
 
+Alphonse is waiting for Gaston to release the lock while Gaston is waiting for Alphonse. Thus, there's deadlock.
+
 4. Return to exercise 1, can deadlock occur here?  Explain why or why not.
+
+No, deadlock can't occur here. No one's waiting for some other thread to finish.
 
 5. Explain why acquireLock uses a synchronized statement inside the body of the method. In other words, why not just make the acquireLock method synchronized, just like releaseLock? Will this work? Why or why not?
 	
+No, this won't work; this is because we only want the lock when we're "taking" inUse. We want other threads to go through
+this method even if they don't have locks so that they can busy wait. 

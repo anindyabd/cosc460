@@ -194,13 +194,11 @@ class HeapFileIterator implements DbFileIterator {
 		Permissions perm = Permissions.READ_ONLY;
 		HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
 		HeapPage page;
-		try {
-			page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
-			currpage = page;
-			heappageiterator = (myIterator) currpage.iterator();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		
+		page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
+		currpage = page;
+		heappageiterator = (myIterator) currpage.iterator();
+		
 		
 		
 	}
@@ -218,16 +216,13 @@ class HeapFileIterator implements DbFileIterator {
 		HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
 		HeapPage page;
 
-		try {
-			page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
-			currpage = page;
-			heappageiterator = (myIterator) currpage.iterator();
 
-			return heappageiterator.hasNext();	
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return false;
+		page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
+		currpage = page;
+		heappageiterator = (myIterator) currpage.iterator();
+
+		return heappageiterator.hasNext();	
+		
 	}
 	
 	public Tuple next() throws TransactionAbortedException, DbException{

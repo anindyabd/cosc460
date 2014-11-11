@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+
 /**
  * BufferPool manages the reading and writing of pages into memory from
  * disk. Access methods call into it to retrieve pages, and it fetches
@@ -19,6 +20,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Threadsafe, all fields are final
  */
 public class BufferPool {
+	
+	
+	/**
+	 * The single Lock Manager
+	 */
+	
+	
     /**
      * Bytes per page, including header.
      */
@@ -36,6 +44,8 @@ public class BufferPool {
     private HashMap<PageId, Page> pagemap;
     private int numPages;
     private TreeMap<Long, Page> timemap;
+    private static LockManager lm;
+    
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -46,7 +56,12 @@ public class BufferPool {
         pagemap = new HashMap<PageId, Page>();
         this.numPages = numPages;
         timemap = new TreeMap<Long, Page>();
+        lm = new LockManager();
     }
+    
+    
+    public static LockManager getLockManager() { return lm; }
+    
 
     public static int getPageSize() {
         return pageSize;
@@ -74,8 +89,11 @@ public class BufferPool {
      * @throws IOException 
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
-            throws TransactionAbortedException, DbException, IOException {
-        if (pagemap.containsKey(pid)){
+            throws TransactionAbortedException, DbException {
+    	
+    	BufferPool.getLockManager().acquireLock(pid, tid);
+    	
+    	if (pagemap.containsKey(pid)){
         	Long time = System.currentTimeMillis();
         	Page page = pagemap.get(pid);
         	return page;
@@ -90,6 +108,7 @@ public class BufferPool {
         Long time = System.currentTimeMillis();
         timemap.put(time, page);
         return page;
+        
     }
 
     /**
@@ -102,8 +121,9 @@ public class BufferPool {
      * @param pid the ID of the page to unlock
      */
     public void releasePage(TransactionId tid, PageId pid) {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+        
+    	BufferPool.getLockManager().releaseLock(pid, tid);
+    
     }
 
     /**
@@ -120,9 +140,14 @@ public class BufferPool {
      * Return true if the specified transaction has a lock on the specified page
      */
     public boolean holdsLock(TransactionId tid, PageId p) {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
-        return false;
+        
+    	if (BufferPool.getLockManager().lockHeldBy(p) != null) {
+    		if (BufferPool.getLockManager().lockHeldBy(p).equals(tid)) {
+    			return true;
+    		}
+    	}
+    	
+    	return false;
     }
 
     /**
@@ -236,15 +261,21 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      * @throws IOException 
      */
-    private synchronized void evictPage() throws DbException, IOException {
+    private synchronized void evictPage() throws DbException {
         Page toevict = timemap.get(timemap.firstKey());
         Page localcopy = pagemap.get(toevict.getId());
         if (localcopy.isDirty() != null) {
-        	this.flushPage(localcopy.getId());
+        	try {
+				this.flushPage(localcopy.getId());
+				  pagemap.remove(localcopy.getId());
+			        timemap.remove(timemap.firstKey());
+			        this.numPages--;
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         }
-        pagemap.remove(localcopy.getId());
-        timemap.remove(timemap.firstKey());
-        this.numPages--;
+      
     }
 
 }
