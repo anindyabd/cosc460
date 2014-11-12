@@ -212,7 +212,7 @@ class HeapFileIterator implements DbFileIterator {
 			return false;
 		}
 		this.pgNo++;
-		Permissions perm = Permissions.READ_WRITE;
+		Permissions perm = Permissions.READ_ONLY;
 		HeapPageId heappageid = new HeapPageId(heapfileid, pgNo);
 		HeapPage page;
 

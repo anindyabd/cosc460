@@ -183,7 +183,7 @@ public class LockingTest2 extends TestUtil.CreateHeapFile {
      */
     @Test
     public void acquireWriteAndReadLocks() throws Exception {
-        metaLockTester(tid1, p0, Permissions.READ_WRITE,
+	        metaLockTester(tid1, p0, Permissions.READ_WRITE,
                 tid1, p0, Permissions.READ_ONLY, true);
     }
 

@@ -91,10 +91,10 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
     	
-    	BufferPool.getLockManager().acquireLock(pid, tid);
+    	BufferPool.getLockManager().acquireLock(pid, tid, perm);
     	
     	if (pagemap.containsKey(pid)){
-        	Long time = System.currentTimeMillis();
+        	//Long time = System.currentTimeMillis();
         	Page page = pagemap.get(pid);
         	return page;
         }
@@ -132,8 +132,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+        transactionComplete(tid, true);
     }
 
     /**
@@ -142,7 +141,7 @@ public class BufferPool {
     public boolean holdsLock(TransactionId tid, PageId p) {
         
     	if (BufferPool.getLockManager().lockHeldBy(p) != null) {
-    		if (BufferPool.getLockManager().lockHeldBy(p).equals(tid)) {
+    		if (BufferPool.getLockManager().lockHeldBy(p).contains(tid)) {
     			return true;
     		}
     	}
@@ -159,8 +158,7 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+          
     }
 
     /**
@@ -268,10 +266,9 @@ public class BufferPool {
         	try {
 				this.flushPage(localcopy.getId());
 				  pagemap.remove(localcopy.getId());
-			        timemap.remove(timemap.firstKey());
-			        this.numPages--;
+			      timemap.remove(timemap.firstKey());
+			      this.numPages--;
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
         }
