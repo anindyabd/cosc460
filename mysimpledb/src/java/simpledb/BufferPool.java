@@ -4,6 +4,8 @@ import java.io.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,11 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * @Threadsafe, all fields are final
  */
 public class BufferPool {
-	
-	
-	/**
-	 * The single Lock Manager
-	 */
 	
 	
     /**
@@ -45,6 +42,7 @@ public class BufferPool {
     private int numPages;
     private TreeMap<Long, Page> timemap;
     private static LockManager lm;
+    private HashMap<TransactionId, HashSet<PageId>> transactionmap;
     
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -56,6 +54,7 @@ public class BufferPool {
         pagemap = new HashMap<PageId, Page>();
         this.numPages = numPages;
         timemap = new TreeMap<Long, Page>();
+        transactionmap = new HashMap<TransactionId, HashSet<PageId>>();
         lm = new LockManager();
     }
     
@@ -92,7 +91,14 @@ public class BufferPool {
             throws TransactionAbortedException, DbException {
     	
     	BufferPool.getLockManager().acquireLock(pid, tid, perm);
-    	
+    	if (!transactionmap.containsKey(tid)) {
+    		HashSet<PageId> newset = new HashSet<PageId>();
+    		newset.add(pid);
+    		transactionmap.put(tid, newset);
+    	}
+    	else {
+    		transactionmap.get(tid).add(pid);
+    	}
     	if (pagemap.containsKey(pid)){
         	//Long time = System.currentTimeMillis();
         	Page page = pagemap.get(pid);
@@ -132,7 +138,10 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-        transactionComplete(tid, true);
+        
+    	transactionComplete(tid, true);
+    	
+    
     }
 
     /**
@@ -158,7 +167,19 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
-          
+    	
+    	if (commit) {
+    		flushPages(tid);
+    	}
+    	
+    	HashSet<PageId> pageset = transactionmap.get(tid);
+    	for (PageId pid:pageset) {
+    		if (BufferPool.getLockManager().lockHeldBy(pid).contains(tid)) {
+    			releasePage(tid, pid);
+        	}
+    	}
+    	
+    	  
     }
 
     /**
@@ -250,8 +271,10 @@ public class BufferPool {
      * Write all pages of the specified transaction to disk.
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2|lab3|lab4                                                         // cosc460
+    	HashSet<PageId> pageset = transactionmap.get(tid);
+    	for (PageId pid:pageset) {
+    		flushPage(pid);
+    	}
     }
 
     /**
@@ -260,19 +283,27 @@ public class BufferPool {
      * @throws IOException 
      */
     private synchronized void evictPage() throws DbException {
-        Page toevict = timemap.get(timemap.firstKey());
-        Page localcopy = pagemap.get(toevict.getId());
-        if (localcopy.isDirty() != null) {
-        	try {
-				this.flushPage(localcopy.getId());
-				  pagemap.remove(localcopy.getId());
-			      timemap.remove(timemap.firstKey());
-			      this.numPages--;
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+        Page toevict = null;
+        Page localcopy = null;
+        Long key = null;
+        for (Entry<Long, Page> entry:timemap.entrySet()) {
+        	toevict = entry.getValue();
+        	key = entry.getKey();
+        	//System.out.println(toevict);
+        	localcopy = pagemap.get(toevict.getId());
+        	//System.out.println(localcopy);
+        	if (localcopy.isDirty() == null) {
+        		break;
+        	}
         }
-      
+        assert(localcopy.isDirty() == null);
+    	try {
+    		this.flushPage(localcopy.getId());
+    		pagemap.remove(localcopy.getId());
+    		timemap.remove(key);
+    		this.numPages--;
+    	} catch (IOException e) {
+    	}
     }
 
 }

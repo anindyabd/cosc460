@@ -101,6 +101,9 @@ public class LockManager {
 		
 	}
 	
+	public synchronized void removeTransaction(TransactionId tid) {
+		
+	}
 	
 	
 	
