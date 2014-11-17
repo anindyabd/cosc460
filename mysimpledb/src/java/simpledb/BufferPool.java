@@ -330,6 +330,9 @@ public class BufferPool {
         		break;
         	}
         }
+        if (localcopy == null) { 
+        	throw new DbException("Oh no! All the pages are dirty!");
+        }
         assert(localcopy != null);
         assert(localcopy.isDirty() == null);
         pagemap.remove(localcopy.getId());
