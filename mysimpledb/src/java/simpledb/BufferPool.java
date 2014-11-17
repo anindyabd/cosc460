@@ -38,10 +38,21 @@ public class BufferPool {
      */
     public static final int DEFAULT_PAGES = 50;
 
+    /* maps PageIDs to pages */
     private HashMap<PageId, Page> pagemap;
+    
+    /* maximum number of pages in this buffer pool. */
     private int numPages;
+    
+    /* number of pages currently in the buffer pool. */
+    private int currpages; 
+    
+    /* Maps retrieval time to pages, for LRU policy. */
     private TreeMap<Long, Page> timemap;
+    
     private static LockManager lm;
+    
+    /* maps TransactionIDs to the PageIDs of all pages that it called getPage for */ 
     private HashMap<TransactionId, HashSet<PageId>> transactionmap;
     
     /**
@@ -56,6 +67,7 @@ public class BufferPool {
         timemap = new TreeMap<Long, Page>();
         transactionmap = new HashMap<TransactionId, HashSet<PageId>>();
         lm = new LockManager();
+        currpages = 0;
     }
     
     
@@ -91,28 +103,34 @@ public class BufferPool {
             throws TransactionAbortedException, DbException {
     	
     	BufferPool.getLockManager().acquireLock(pid, tid, perm);
+    	
     	if (!transactionmap.containsKey(tid)) {
     		HashSet<PageId> newset = new HashSet<PageId>();
     		newset.add(pid);
     		transactionmap.put(tid, newset);
     	}
     	else {
-    		transactionmap.get(tid).add(pid);
+    		HashSet<PageId> set = transactionmap.get(tid);
+    		set.add(pid);
+    		transactionmap.put(tid, set);
     	}
     	if (pagemap.containsKey(pid)){
-        	//Long time = System.currentTimeMillis();
+        	Long time = System.currentTimeMillis();
         	Page page = pagemap.get(pid);
+        	timemap.put(time, page);
         	return page;
         }
-        if (pagemap.size() > this.numPages) {
+        if (this.currpages == this.numPages) {
         	this.evictPage();
         }
+        
         int tableid = pid.getTableId();
         DbFile dbfile = Database.getCatalog().getDatabaseFile(tableid);
         this.pagemap.put(pid, dbfile.readPage(pid));
         Page page = pagemap.get(pid);
         Long time = System.currentTimeMillis();
         timemap.put(time, page);
+        currpages++;
         return page;
         
     }
@@ -165,14 +183,18 @@ public class BufferPool {
      * @param tid    the ID of the transaction requesting the unlock
      * @param commit a flag indicating whether we should commit or abort
      */
-    public void transactionComplete(TransactionId tid, boolean commit)
+    public synchronized void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
     	
     	if (commit) {
     		flushPages(tid);
     	}
-    	
     	HashSet<PageId> pageset = transactionmap.get(tid);
+    	if (!commit) {
+    		for (PageId pid:pageset) {
+    			discardPage(pid);
+    		}
+    	}
     	for (PageId pid:pageset) {
     		if (BufferPool.getLockManager().lockHeldBy(pid).contains(tid)) {
     			releasePage(tid, pid);
@@ -202,7 +224,8 @@ public class BufferPool {
        ArrayList<Page> pagelist = file.insertTuple(tid, t);
        for (Page page : pagelist) {
     	   page.markDirty(true, tid);
-    	   pagemap.get(page.getId()).markDirty(true, tid);
+    	   pagemap.put(page.getId(), page);
+    	   
        }
     }
 
@@ -248,8 +271,20 @@ public class BufferPool {
      * cache.
      */
     public synchronized void discardPage(PageId pid) {
-        // some code goes here
-        // only necessary for lab6                                                                            // cosc460
+    	/*Long key = null;
+    	for (Entry<Long, Page> entry:timemap.entrySet()) {
+    		if (entry.getValue().getId().equals(pid)) {
+    			key = entry.getKey();
+    			System.out.println(entry.getKey());
+    			System.out.println(key);
+    			break;
+    		}
+    	}
+    	timemap.remove(key);*/
+    	pagemap.remove(pid);
+    	this.currpages--;
+
+    	
     }
 
     /**
@@ -283,27 +318,23 @@ public class BufferPool {
      * @throws IOException 
      */
     private synchronized void evictPage() throws DbException {
-        Page toevict = null;
+        assert (this.currpages == this.numPages); //shouldn't need to evict if there's still space
+    	Page toevict = null;
         Page localcopy = null;
         Long key = null;
         for (Entry<Long, Page> entry:timemap.entrySet()) {
         	toevict = entry.getValue();
         	key = entry.getKey();
-        	//System.out.println(toevict);
         	localcopy = pagemap.get(toevict.getId());
-        	//System.out.println(localcopy);
         	if (localcopy.isDirty() == null) {
         		break;
         	}
         }
+        assert(localcopy != null);
         assert(localcopy.isDirty() == null);
-    	try {
-    		this.flushPage(localcopy.getId());
-    		pagemap.remove(localcopy.getId());
-    		timemap.remove(key);
-    		this.numPages--;
-    	} catch (IOException e) {
-    	}
+        pagemap.remove(localcopy.getId());
+        timemap.remove(key);
+        currpages--;
     }
 
 }
