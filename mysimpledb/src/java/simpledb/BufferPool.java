@@ -326,8 +326,10 @@ public class BufferPool {
         	toevict = entry.getValue();
         	key = entry.getKey();
         	localcopy = pagemap.get(toevict.getId());
-        	if (localcopy.isDirty() == null) {
-        		break;
+        	if (localcopy != null) {
+        		if (localcopy.isDirty() == null) {
+        			break;
+        		}
         	}
         }
         if (localcopy == null) { 
