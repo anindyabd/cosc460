@@ -70,7 +70,9 @@ public class BufferPool {
         currpages = 0;
     }
     
-    
+    public int numPages() {
+    	return numPages;
+    }
     public static LockManager getLockManager() { return lm; }
     
 
@@ -99,14 +101,14 @@ public class BufferPool {
      * @param perm the requested permissions on the page
      * @throws IOException 
      */
-    public Page getPage(TransactionId tid, PageId pid, Permissions perm)
+    public synchronized Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
     	
-    	synchronized (this) {
+    	
     		Long starttime = System.currentTimeMillis();
     		while (BufferPool.getLockManager().acquireLock(pid, tid, perm) == false){
     			try {
-    				Thread.sleep(1);
+    				Thread.sleep(5);
     			} catch (InterruptedException e) {
     			}
     			Long currtime = System.currentTimeMillis();
@@ -114,7 +116,7 @@ public class BufferPool {
     				throw new TransactionAbortedException();
     			}
     		}
-    	}
+    	
     	
     	HashSet<PageId> set = null;
     	
@@ -134,7 +136,6 @@ public class BufferPool {
         	Long time = System.currentTimeMillis();
         	Page page = pagemap.get(pid);
         	timemap.put(time, page);
-            BufferPool.getLockManager().acquireLock(pid, tid, perm);
         	return page;
         }
     	
@@ -149,8 +150,6 @@ public class BufferPool {
         Long time = System.currentTimeMillis();
         timemap.put(time, page);
         currpages++;
-    	
-        BufferPool.getLockManager().acquireLock(pid, tid, perm);
         
     	return page;
         
@@ -348,7 +347,7 @@ public class BufferPool {
      */
     private synchronized void evictPage() throws DbException {
         assert (this.currpages == this.numPages); //shouldn't need to evict if there's still space
-    	Page toevict = null;
+        Page toevict = null;
         Page localcopy = null;
         Long key = null;
         for (Entry<Long, Page> entry:timemap.entrySet()) {
@@ -360,6 +359,7 @@ public class BufferPool {
         			break;
         		}
         	}
+        	localcopy = null;
         }
         if (localcopy == null) { 
         	throw new DbException("Oh no! All the pages are dirty!");
