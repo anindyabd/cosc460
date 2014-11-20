@@ -3,108 +3,78 @@ import java.util.*;
 
 public class LockManager {
 	
-	private volatile HashMap<PageId,LinkedList<TransactionId>> locktable;
-	private volatile HashMap<TransactionId, Permissions> waitingperms;
 	private volatile HashMap<PageId, HashSet<TransactionId>> lockheldmap;
-	private volatile HashMap<PageId, Boolean> writelockmap;
+	private volatile HashSet<PageId> writelockset;
 	
-	public LockManager() {
-		locktable = new HashMap<PageId, LinkedList<TransactionId>>();
+	public LockManager() { 
+		 
+		/* maps the PageIds of the pages to HashSets containing the TransactionIds of all the 
+		 * transactions that hold a lock on this page.
+		 */
 		lockheldmap = new HashMap<PageId, HashSet<TransactionId>>();
-		waitingperms = new HashMap<TransactionId, Permissions>();
-		writelockmap = new HashMap<PageId, Boolean>();
-	}
-	
-	public synchronized void acquireLock(PageId pid, TransactionId tid, Permissions perm) {
-		boolean waiting = true;
-		while (waiting) {
-			if (writelockmap.containsKey(pid) && lockheldmap.get(pid).contains(tid)){
-				break;
-			}
-			if ((writelockmap.get(pid) != null && writelockmap.get(pid)) || (perm == Permissions.READ_WRITE && locktable.containsKey(pid))) {
-				if (locktable.containsKey(pid)) {
-					LinkedList<TransactionId> waitinglist = locktable.get(pid);
-					waitinglist.add(tid);
-					locktable.put(pid, waitinglist);
-					waitingperms.put(tid, perm);
-				}
-				else {
-					LinkedList<TransactionId> waitinglist = new LinkedList<TransactionId>();
-					waitinglist.add(tid);
-					locktable.put(pid, waitinglist);
-					waitingperms.put(tid, perm);
-				}
-
-				if (waiting) {
-					try {
-						Thread.sleep(1); // busy wait
-					}
-					catch (InterruptedException e) {}
-				}
-			}
-			else {
-				waiting = false;
-			}
-		}
-		if (perm == Permissions.READ_WRITE) {
-			writelockmap.put(pid, true);
-		}
-		else {
-			writelockmap.put(pid, false);
-		}
-		if (lockheldmap.get(pid) == null) {
-			HashSet<TransactionId> transactionset = new HashSet<TransactionId>();
-			transactionset.add(tid);
-			lockheldmap.put(pid, transactionset);
-		}
-		else {
-			HashSet<TransactionId> transactionset = lockheldmap.get(pid);
-			transactionset.add(tid);
-			lockheldmap.put(pid, transactionset);
-		}
-
-		if (!locktable.containsKey(pid)) {
-			LinkedList<TransactionId> waitinglist = new LinkedList<TransactionId>();
-			waitinglist.add(tid);
-			locktable.put(pid, waitinglist);
-		}
-		if (!locktable.get(pid).contains(tid)) {
-			locktable.get(pid).addFirst(tid);
-		}
-
-	}
-
 		
-	
-	public synchronized void releaseLock(PageId pid, TransactionId tid) {
-		lockheldmap.remove(pid);
-		locktable.get(pid).remove(tid);
-		if (writelockmap.get(pid) != null) {
-			writelockmap.remove(pid);
-		}
-		if (locktable.get(pid).isEmpty()) {
-			locktable.remove(pid);
-		}
-		if (locktable.containsKey(pid)) {
-			LinkedList<TransactionId> waitinglist = locktable.get(pid);
-			TransactionId nexttid = waitinglist.poll();
-			Permissions perm = waitingperms.get(nexttid);
-			this.acquireLock(pid, nexttid, perm);
-		}
+		/*
+		 * holds the pages that have write locks on them.
+		 */
+		writelockset = new HashSet<PageId>();
 	}
 	
-	public HashSet<TransactionId> lockHeldBy(PageId pid) {
+	public boolean acquireLock(PageId pid, TransactionId tid, Permissions perm) throws TransactionAbortedException {
+		
+		if (writelockset.contains(pid)) {
+			if (!lockheldmap.get(pid).contains(tid)) {
+				return false;
+			}
+		}
+		if (perm.equals(Permissions.READ_WRITE)) {
+			if (lockheldmap.get(pid) != null) {
+				if (!lockheldmap.get(pid).contains(tid) || lockheldmap.get(pid).size()>1) {
+					return false;
+				}
+			}
+		}
+		
+		if (perm.equals(Permissions.READ_WRITE)) {
+			writelockset.add(pid);
+		}
+		HashSet<TransactionId> transactionset = null;
+		if (lockheldmap.get(pid) == null) {
+			transactionset = new HashSet<TransactionId>();
+		}
+		else {
+			transactionset = lockheldmap.get(pid);
+		}
+		transactionset.add(tid);
+		lockheldmap.put(pid, transactionset);
+		return true;
+	}
+
+	/* releases the lock held on the page with PageId pid by Transaction with TransactionId tid */
+	public synchronized void releaseLock(PageId pid, TransactionId tid) throws TransactionAbortedException {
+		
+		if (writelockset.contains(pid)) {
+			writelockset.remove(pid);
+		}
+		HashSet<TransactionId> set = lockheldmap.get(pid);
+		set.remove(tid);
+		lockheldmap.put(pid, set);
+		if (lockheldmap.get(pid).isEmpty()) {
+			lockheldmap.remove(pid);
+		}
+	}
+	/**
+	 * 
+	 * @param pid
+	 * @return A HashSet of all the TransactionIds of the transactions 
+	 * that hold a lock on this page. If no transaction holds a lock 
+	 * on this page, null is returned.
+	 */
+	public synchronized HashSet<TransactionId> lockHeldBy(PageId pid) {
 		if (!lockheldmap.containsKey(pid)) { 
 			return null; 
 		}
 		return lockheldmap.get(pid);
-		
 	}
-	
-	public synchronized void removeTransaction(TransactionId tid) {
-		
-	}
-	
 	
 	
 }

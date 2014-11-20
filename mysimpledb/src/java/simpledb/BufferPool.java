@@ -102,24 +102,42 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
     	
-    	BufferPool.getLockManager().acquireLock(pid, tid, perm);
+    	synchronized (this) {
+    		Long starttime = System.currentTimeMillis();
+    		while (BufferPool.getLockManager().acquireLock(pid, tid, perm) == false){
+    			try {
+    				Thread.sleep(1);
+    			} catch (InterruptedException e) {
+    			}
+    			Long currtime = System.currentTimeMillis();
+    			if (currtime - starttime > 200) {
+    				throw new TransactionAbortedException();
+    			}
+    		}
+    	}
+    	
+    	HashSet<PageId> set = null;
     	
     	if (!transactionmap.containsKey(tid)) {
-    		HashSet<PageId> newset = new HashSet<PageId>();
-    		newset.add(pid);
-    		transactionmap.put(tid, newset);
+    		set = new HashSet<PageId>();
     	}
+    	
     	else {
-    		HashSet<PageId> set = transactionmap.get(tid);
-    		set.add(pid);
-    		transactionmap.put(tid, set);
+    		set = transactionmap.get(tid);
     	}
+    	
+    	set.add(pid);
+    	
+    	transactionmap.put(tid, set);
+
     	if (pagemap.containsKey(pid)){
         	Long time = System.currentTimeMillis();
         	Page page = pagemap.get(pid);
         	timemap.put(time, page);
+            BufferPool.getLockManager().acquireLock(pid, tid, perm);
         	return page;
         }
+    	
         if (this.currpages == this.numPages) {
         	this.evictPage();
         }
@@ -131,7 +149,10 @@ public class BufferPool {
         Long time = System.currentTimeMillis();
         timemap.put(time, page);
         currpages++;
-        return page;
+    	
+        BufferPool.getLockManager().acquireLock(pid, tid, perm);
+        
+    	return page;
         
     }
 
@@ -146,7 +167,10 @@ public class BufferPool {
      */
     public void releasePage(TransactionId tid, PageId pid) {
         
-    	BufferPool.getLockManager().releaseLock(pid, tid);
+    	try {
+			BufferPool.getLockManager().releaseLock(pid, tid);
+		} catch (TransactionAbortedException e) {
+		}
     
     }
 
@@ -186,22 +210,23 @@ public class BufferPool {
     public synchronized void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
     	
-    	if (commit) {
-    		flushPages(tid);
-    	}
-    	HashSet<PageId> pageset = transactionmap.get(tid);
-    	if (!commit) {
-    		for (PageId pid:pageset) {
-    			discardPage(pid);
+    	if (transactionmap.get(tid) != null) {
+    		if (commit) {
+    			flushPages(tid);
     		}
+    		HashSet<PageId> pageset = transactionmap.get(tid);
+    		if (!commit) {
+    			for (PageId pid:pageset) {
+    				discardPage(pid);
+    			}
+    		}
+    		for (PageId pid:pageset) {
+    			if (BufferPool.getLockManager().lockHeldBy(pid).contains(tid)) {
+    				releasePage(tid, pid);
+    			}
+    		}
+    		transactionmap.remove(tid);
     	}
-    	for (PageId pid:pageset) {
-    		if (BufferPool.getLockManager().lockHeldBy(pid).contains(tid)) {
-    			releasePage(tid, pid);
-        	}
-    	}
-    	
-    	  
     }
 
     /**
@@ -296,10 +321,12 @@ public class BufferPool {
         int tableId = pid.getTableId();
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
         Page page = pagemap.get(pid);
-        file.writePage(page);
-        TransactionId tid = new TransactionId();
-        page.markDirty(false, tid);
-        pagemap.put(pid, page); // update hashmap
+        if (page != null) {
+        	file.writePage(page);
+        	TransactionId tid = new TransactionId();
+        	page.markDirty(false, tid);
+        	pagemap.put(pid, page); // update hashmap
+        }
     }
 
     /**
@@ -307,8 +334,10 @@ public class BufferPool {
      */
     public synchronized void flushPages(TransactionId tid) throws IOException {
     	HashSet<PageId> pageset = transactionmap.get(tid);
-    	for (PageId pid:pageset) {
-    		flushPage(pid);
+    	if (pageset != null) {
+    		for (PageId pid:pageset) {
+    			flushPage(pid);
+    		}
     	}
     }
 
