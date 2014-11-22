@@ -116,7 +116,7 @@ public class HeapFile implements DbFile {
             throws DbException, IOException, TransactionAbortedException {
 	   
 	   int pgNo = 0;
-	   Permissions perm = Permissions.READ_WRITE;
+	   Permissions perm = Permissions.READ_ONLY;
 	   HeapPageId heappageid = new HeapPageId(this.getId(), pgNo);
 	   HeapPage page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
 	   boolean mustAddNewPage = false;
@@ -137,6 +137,8 @@ public class HeapFile implements DbFile {
 		   this.writePage(page);
 	   }
 	   else {
+		   heappageid = new HeapPageId(this.getId(), pgNo);
+		   page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, Permissions.READ_WRITE);
 		   page.insertTuple(t);
 	   }
 	   ArrayList<Page> pageArrayList = new ArrayList<Page>();

@@ -9,7 +9,7 @@ After you complete lab 5, please answer the following questions.
 
 2. What did you think of this assignment?
 
-	
+	It was challenging but rewarding, so same as the other labs.
 
 3. What was the hardest part of this assignment?
 
@@ -17,7 +17,7 @@ After you complete lab 5, please answer the following questions.
 
 4. Describe any missing or incomplete elements of your code.
 
-	Everything should be complete
+	Everything should be complete, but TransactionTest system test takes a while (30 seconds or more).
 
 5. Roughly how long did you spend working on this lab?
 
@@ -31,12 +31,22 @@ a) Where is your lock manager located?  (I.e., is it a separate class, part of B
 
 b) What specific information do you store and how do you store it?  
 
-	
+	I have a HashMap called lockheldmap, which maps the PageIds of the pages to HashSets containing the TransactionIds of all the transactions that hold locks on the pages. I also have a HashSet called writelockset that holds the PageIds of pages that have write locks on them.    
 
 c) Briefly describe what happens when a new transaction requests a page.  I.e., walk thru how the lock manager decides whether or not to grant the request.  Your description should reference the data structures that describe in part (b).
 
-	(Replace this text with your answer)
+    First the lock manager checks if the page is in writelockset. If it is, then there's a write lock on it. Then if 
+    the TransactionId tid is in lockheldmap.get(pid), i.e. if the transaction that wants the lock already has the lock, the lock manager allows the transaction to go ahead and get the lock again. Otherwise, the lock manager does not grant the lock. (in my code, if the lock is not granted, LockManager.acquireLock() returns false, and the thread keeps spin-waiting in BufferPool.getPage()). 
+    Then the lock manager checks if the thread wants a write lock. At this point if any thread other than the current 
+    thread has a lock on the page, the lock is not granted. lockheldmap.get(pid) is checked to see if tid is in it and 
+    the size of lockheldmap.get(pid) is checked. If the tid is not in there, or if the size is greater than 1, then the 
+    lock is not granted. If the current thread does have a read lock on the page, then it's an upgrade request, so the 
+    lock is granted.
+    After this point, the lock has been granted, so the data structures are updated. If it's a write lock, the pid is 
+    put in writelockmap. The HashSet in lockheldmap.get(pid) is also updated with the tid.
 
 d) Briefly explain how you manage locks when inserting a tuple into a HeapFile.  In particular, how do you acquire/release locks when looking for a page to insert.
 
-	(Replace this text with your answer)
+    As the code goes through looking for pages, it uses BufferPool.getPage() to get the pages. When just looking for pages, it just uses Permissions.READ_ONLY, to obtain shared locks. When it finds a page that it can insert into, 
+    it calls BufferPool.getPage() on that page using Permissions.READ_WRITE to get an exclusive lock. Then it writes to
+    the page. Locks are not released until transactionComplete(). 
