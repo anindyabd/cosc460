@@ -67,7 +67,9 @@ public class LogRecoveryTest extends LogTestBase {
     @Test
     public void TestCommitAbortCommitCrash()
             throws IOException, DbException, TransactionAbortedException {
-        setup();
+    	
+    	setup();
+       
         doInsert(hf1, 1, 2);
 
         // *** Test:
@@ -79,7 +81,8 @@ public class LogRecoveryTest extends LogTestBase {
         doInsert(hf1, 5, -1);
         dontInsert(hf1, 6, -1);
         doInsert(hf1, 7, -1);
-
+   
+        
         Transaction t = new Transaction();
         t.start();
         look(hf1, t, 1, true);
@@ -92,7 +95,7 @@ public class LogRecoveryTest extends LogTestBase {
         // crash: should not change visible data
 
         crash();
-
+        
         t = new Transaction();
         t.start();
         look(hf1, t, 1, true);
@@ -354,13 +357,12 @@ public class LogRecoveryTest extends LogTestBase {
         doInsert(hf1, 1, -1);
 
         Database.getLogFile().logCheckpoint();
-
+        Database.getLogFile().print();
         Transaction t1 = new Transaction();
         HeapPage p = (HeapPage) Database.getBufferPool().getPage(t1.getId(),
                 new HeapPageId(hf1.getId(), 0),
                 Permissions.READ_ONLY);
         t1.commit();
-
         // make copy of page
         int v1 = 3;
         int v2 = 4;
@@ -379,11 +381,11 @@ public class LogRecoveryTest extends LogTestBase {
         value.setField(1, new IntField(v2));
         p.insertTuple(value);
         hf1.writePage(p);   // total hack: write the page by passing
-
+        Database.getLogFile().print();
         doInsert(hf2, 30, 40);
-
+        //Database.getLogFile().print();
         crash();
-
+       
         Transaction t = new Transaction();
         t.start();
         look(hf1, t, 1, false);

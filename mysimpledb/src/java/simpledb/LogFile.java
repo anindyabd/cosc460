@@ -140,8 +140,8 @@ public class LogFile {
     private void checkActive(TransactionId tid, boolean shouldBeActive) throws IOException {
         // should check for active but many test cases do not explicitly start and stop
         // transactions and so checking for active can cause tests to fail
-        /*
-        if (shouldBeActive) {
+        
+        /*if (shouldBeActive) {
             if (!activeTids.contains(tid.getId())) {
                 throw new IOException("This tid should be active but is not!");
             }
@@ -149,8 +149,8 @@ public class LogFile {
             if (activeTids.contains(tid.getId())) {
                 throw new IOException("This tid should NOT be active but it is!");
             }
-        }
-        */
+        }*/
+        
     }
 
     /**
@@ -207,10 +207,13 @@ public class LogFile {
                 // must do this here, since rollback only works for
                 // live transactions (needs tidToFirstLogRecord)
                 logFileRecovery.rollback(tid);
+                this.logAbort(tid.getId());
             }
         }
     }
-
+    public void print() throws IOException {
+    	logFileRecovery.print();
+    }
     /**
      * Write a commit record to disk for the specified tid,
      * and force the log to disk.

@@ -211,7 +211,20 @@ public class BufferPool {
     	
     	if (transactionmap.get(tid) != null) {
     		if (commit) {
-    			flushPages(tid);
+    			HashSet<PageId> pageset = transactionmap.get(tid);
+    			for (PageId pageid:pageset) {
+    				Page page;
+					try {
+						page = Database.getBufferPool().getPage(tid, pageid, Permissions.READ_ONLY);
+						page.setBeforeImage();
+						pagemap.put(pageid, page);
+					} catch (TransactionAbortedException e) {
+						e.printStackTrace();
+					} catch (DbException e) {
+						
+					}
+    			}
+    			
     		}
     		HashSet<PageId> pageset = transactionmap.get(tid);
     		if (!commit) {
@@ -321,10 +334,18 @@ public class BufferPool {
         DbFile file = Database.getCatalog().getDatabaseFile(tableId);
         Page page = pagemap.get(pid);
         if (page != null) {
-        	file.writePage(page);
+        	TransactionId dirtier = page.isDirty();
+            if (dirtier != null){
+              Database.getLogFile().logWrite(dirtier, page.getBeforeImage(), page);
+              Database.getLogFile().force();
+              page.markDirty(false, dirtier);
+              file.writePage(page);
+              pagemap.put(pid, page); // update hashmap
+            }
+        	/*file.writePage(page);
         	TransactionId tid = new TransactionId();
         	page.markDirty(false, tid);
-        	pagemap.put(pid, page); // update hashmap
+        	pagemap.put(pid, page);*/ // update hashmap
         }
     }
 
@@ -347,27 +368,15 @@ public class BufferPool {
      */
     private synchronized void evictPage() throws DbException {
         assert (this.currpages == this.numPages); //shouldn't need to evict if there's still space
-        Page toevict = null;
-        Page localcopy = null;
-        Long key = null;
-        for (Entry<Long, Page> entry:timemap.entrySet()) {
-        	toevict = entry.getValue();
-        	key = entry.getKey();
-        	localcopy = pagemap.get(toevict.getId());
-        	if (localcopy != null) {
-        		if (localcopy.isDirty() == null) {
-        			break;
-        		}
-        	}
-        	localcopy = null;
+        if (timemap.firstEntry().getValue().isDirty() != null) {
+        	try {
+				flushPage(timemap.firstEntry().getValue().getId());
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
         }
-        if (localcopy == null) { 
-        	throw new DbException("Oh no! All the pages are dirty!");
-        }
-        assert(localcopy != null);
-        assert(localcopy.isDirty() == null);
-        pagemap.remove(localcopy.getId());
-        timemap.remove(key);
+        pagemap.remove(timemap.firstEntry().getValue().getId());
+        timemap.remove(timemap.firstKey());
         currpages--;
     }
 
