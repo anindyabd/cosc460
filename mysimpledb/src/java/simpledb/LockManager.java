@@ -1,19 +1,20 @@
 package simpledb;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LockManager {
     
-    private volatile HashMap<PageId, HashSet<TransactionId>> lockheldmap;
-    private volatile HashSet<PageId> writelockset;
-    private volatile HashMap<PageId, LinkedList<TransactionId>> locktable;
-    private volatile HashMap<TransactionId, HashMap<PageId, Long>> waitingtransactions;
+    private ConcurrentHashMap<PageId, HashSet<TransactionId>> lockheldmap;
+    private HashSet<PageId> writelockset;
+    private ConcurrentHashMap<PageId, LinkedList<TransactionId>> locktable;
+    private ConcurrentHashMap<TransactionId, HashMap<PageId, Long>> waitingtransactions;
     
     public LockManager() { 
          
         /* maps the PageIds of the pages to HashSets containing the TransactionIds of all the 
          * transactions that hold a lock on this page.
          */
-        lockheldmap = new HashMap<PageId, HashSet<TransactionId>>();
+        lockheldmap = new ConcurrentHashMap<PageId, HashSet<TransactionId>>();
         
         /*
          * holds the pages that have write locks on them.
@@ -23,31 +24,30 @@ public class LockManager {
         /*
          * Maintains a FIFO queue of transactions waiting for each page
          */
-        locktable = new HashMap<PageId, LinkedList<TransactionId>>();
+        locktable = new ConcurrentHashMap<PageId, LinkedList<TransactionId>>();
         
         /*
          * Maps the transactions that are waiting to a map of 
          */
-        waitingtransactions = new HashMap<TransactionId, HashMap<PageId, Long>>();
+        waitingtransactions = new ConcurrentHashMap<TransactionId, HashMap<PageId, Long>>();
         
     }
     
-    public boolean acquireLock(PageId pid, TransactionId tid, Permissions perm) throws TransactionAbortedException {
+    public void acquireLock(PageId pid, TransactionId tid, Permissions perm) throws TransactionAbortedException {
         
         synchronized (this) {
-            HashMap<PageId, Long> pagemap;
-            if (waitingtransactions.containsKey(tid)) {
-                if (waitingtransactions.get(tid).containsKey(pid)) { // this txn is already waiting for this page
-                    return false;
-                }
-                pagemap = waitingtransactions.get(tid);
-            }
-            else {
-                pagemap = new HashMap<PageId, Long>();
-            }
-            Long time = System.currentTimeMillis();
-            pagemap.put(pid, time);
-            waitingtransactions.put(tid, pagemap);
+        	HashMap<PageId, Long> pagemap;
+        	if (waitingtransactions.containsKey(tid)) {
+        		pagemap = waitingtransactions.get(tid);
+        	}
+        	else {
+        		pagemap = new HashMap<PageId, Long>();
+        	}
+        	Long time = System.currentTimeMillis();
+        	if (!waitingtransactions.containsKey(tid) || !waitingtransactions.get(tid).containsKey(pid)) { // if this transaction is not already waiting for this page...
+        		pagemap.put(pid, time); 
+        	}
+        	waitingtransactions.put(tid, pagemap);
         }
         
         while (true) { // keep spinning unless we break
@@ -100,14 +100,14 @@ public class LockManager {
                 }
                 
                 Long currtime = System.currentTimeMillis();
-                if (currtime - waitingtransactions.get(tid).get(pid) > 3000) { 
+                if (currtime - waitingtransactions.get(tid).get(pid) > 1000) { // if this transaction has been waiting for this page for too long, abort
                     
                     throw new TransactionAbortedException();
                 }
                 
             }
             try {
-                Thread.sleep(5);
+                Thread.sleep(1);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -138,7 +138,6 @@ public class LockManager {
             }
             transactionset.add(tid);
             lockheldmap.put(pid, transactionset);
-            return true;
         }
     }
 
@@ -157,6 +156,17 @@ public class LockManager {
     }
     
     public synchronized void removeFromWaiting(TransactionId tid) {
+        if (waitingtransactions.containsKey(tid)) {
+        	for (PageId pid: waitingtransactions.get(tid).keySet()) {
+        		if (locktable.get(pid) != null) {
+        			LinkedList<TransactionId> queue = locktable.get(pid);
+        			while (queue.contains(tid)) {
+        				queue.remove(tid);
+        			}
+        			locktable.put(pid, queue);
+        		}
+        	}
+        }
         waitingtransactions.remove(tid);
     }
     /**

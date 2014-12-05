@@ -194,7 +194,7 @@ public class LogFile {
      *
      * @param tid The aborting transaction.
      */
-    public void logAbort(TransactionId tid) throws IOException {
+    public synchronized void logAbort(TransactionId tid) throws IOException {
         // must have buffer pool lock before proceeding, since this
         // calls rollback
 

@@ -137,7 +137,7 @@ class LogFileRecovery {
 			}
 			readOnlyLog.seek(recordstart);
 		}
-
+		readOnlyLog.seek(readOnlyLog.length());
 	}
 
 	/**
@@ -198,9 +198,7 @@ class LogFileRecovery {
 			}
 			long startOfRecord = readOnlyLog.readLong();
 		}
-		for (Long tid:losers) {
-			System.out.println("T" + tid);
-		}
+
 		while (!losers.isEmpty()) {
 			Long tid = losers.first();
 			undo(tid);
@@ -210,6 +208,7 @@ class LogFileRecovery {
 		for (Long tid:undone) {
 			Database.getLogFile().logAbort(tid);
 		}
+		readOnlyLog.seek(readOnlyLog.length());
 
 	}
 

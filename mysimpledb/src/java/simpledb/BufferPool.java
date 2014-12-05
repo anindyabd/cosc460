@@ -74,7 +74,7 @@ public class BufferPool {
 		return numPages;
 	}
 
-	private static LockManager getLockManager() { return lm; }
+	public static LockManager getLockManager() { return lm; }
 
 
 	public static int getPageSize() {
@@ -102,12 +102,12 @@ public class BufferPool {
 	 * @param perm the requested permissions on the page
 	 * @throws IOException 
 	 */
-	public synchronized Page getPage(TransactionId tid, PageId pid, Permissions perm)
+	public Page getPage(TransactionId tid, PageId pid, Permissions perm)
 			throws TransactionAbortedException, DbException {
 
 		BufferPool.getLockManager().acquireLock(pid, tid, perm);
 
-		synchronized(this) {
+		synchronized (this) {
 
 			HashSet<PageId> set = null;
 
@@ -202,8 +202,8 @@ public class BufferPool {
 			throws IOException {
 		synchronized (lm) {
 			if (transactionmap.get(tid) != null) {
+				HashSet<PageId> pageset = transactionmap.get(tid);
 				if (commit) {
-					HashSet<PageId> pageset = transactionmap.get(tid);
 					for (PageId pageid:pageset) {
 						Page page;
 						try {
@@ -218,20 +218,21 @@ public class BufferPool {
 					}
 
 				}
-				HashSet<PageId> pageset = transactionmap.get(tid);
 				if (!commit) {
 					for (PageId pid:pageset) {
 						discardPage(pid);
 					}
 				}
 				for (PageId pid:pageset) {
+					BufferPool.getLockManager().removeFromWaiting(tid);
 					if (BufferPool.getLockManager().lockHeldBy(pid).contains(tid)) {
 						releasePage(tid, pid);
 					}
 				}
-				BufferPool.getLockManager().removeFromWaiting(tid);
 				transactionmap.remove(tid);
 			}
+			BufferPool.getLockManager().removeFromWaiting(tid);
+			System.out.println("finished releasing locks" + tid);
 		}
 	}
 
