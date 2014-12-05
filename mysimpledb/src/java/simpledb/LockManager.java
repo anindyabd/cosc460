@@ -69,7 +69,7 @@ public class LockManager {
                         queue.remove(tid);
                     }
                     locktable.put(pid, queue);
-                    break;
+                    throw new TransactionAbortedException();
                 }
                 
                 if (!queue.contains(tid)) { // if there's no record of this tid waiting for this page, add the record
@@ -100,7 +100,7 @@ public class LockManager {
                 }
                 
                 Long currtime = System.currentTimeMillis();
-                if (currtime - waitingtransactions.get(tid).get(pid) > 1000) { 
+                if (currtime - waitingtransactions.get(tid).get(pid) > 3000) { 
                     
                     throw new TransactionAbortedException();
                 }

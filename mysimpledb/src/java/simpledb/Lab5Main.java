@@ -17,7 +17,7 @@ public class Lab5Main {
         // loads the imdb database because each table is big enough to have multiple pages
         Database.getCatalog().loadSchema("imdb.schema");             // file imdb.schema must be in mysimpledb directory
 
-        Lab5Util.runTransactions(new T1(), new T2());
+        Lab5Util.runTransactions(new T1(), new T2(), new T3(), new T4());
     }
 
     static class T1 extends SimpleDBTransactionThread {
@@ -28,6 +28,7 @@ public class Lab5Main {
             PageId p0 = new HeapPageId(table, 0);
             PageId p1 = new HeapPageId(table, 1);
             Database.getBufferPool().getPage(tid, p0, Permissions.READ_WRITE);
+            System.out.println("got a lock" + tid);
             try {
                 Thread.sleep(5);              // pause to encourage deadlock
             } catch (InterruptedException ignored) { }
@@ -44,8 +45,7 @@ public class Lab5Main {
             PageId p0 = new HeapPageId(table, 0);
             PageId p1 = new HeapPageId(table, 1);
 			Database.getBufferPool().getPage(tid, p1, Permissions.READ_WRITE);
-			
-			 // creates deadlock w/ T1!
+			System.out.println("got a lock" + tid);
             try {
                 Thread.sleep(5);             // pause to encourage deadlock
             } catch (InterruptedException ignored) { }
@@ -53,5 +53,40 @@ public class Lab5Main {
             System.out.println("got both locks " + tid);
         }
     }
+    
+    static class T3 extends SimpleDBTransactionThread {
+
+        @Override
+        protected void execute() throws TransactionAbortedException, DbException {
+            int table = Database.getCatalog().getTableId("Actor");
+            PageId p0 = new HeapPageId(table, 0);
+            PageId p1 = new HeapPageId(table, 1);
+			Database.getBufferPool().getPage(tid, p1, Permissions.READ_WRITE);
+			System.out.println("got a lock" + tid);
+            try {
+                Thread.sleep(5);             // pause to encourage deadlock
+            } catch (InterruptedException ignored) { }
+            Database.getBufferPool().getPage(tid, p0, Permissions.READ_WRITE);
+            System.out.println("got both locks " + tid);
+        }
+    }
+    
+    static class T4 extends SimpleDBTransactionThread {
+
+        @Override
+        protected void execute() throws TransactionAbortedException, DbException {
+            int table = Database.getCatalog().getTableId("Actor");
+            PageId p0 = new HeapPageId(table, 0);
+            PageId p1 = new HeapPageId(table, 1);
+			Database.getBufferPool().getPage(tid, p1, Permissions.READ_WRITE);
+			System.out.println("got a lock" + tid);
+            try {
+                Thread.sleep(5);             // pause to encourage deadlock
+            } catch (InterruptedException ignored) { }
+            Database.getBufferPool().getPage(tid, p0, Permissions.READ_WRITE);
+            System.out.println("got both locks " + tid);
+        }
+    }
+    
 
 }
