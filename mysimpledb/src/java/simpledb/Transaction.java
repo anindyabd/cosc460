@@ -48,7 +48,7 @@ public class Transaction {
     /**
      * Handle the details of transaction commit / abort
      */
-    public void transactionComplete(boolean abort) throws IOException {
+    public synchronized void transactionComplete(boolean abort) throws IOException {
 
         if (started) {
             //write commit / abort records

@@ -121,6 +121,7 @@ public class HeapFile implements DbFile {
 	   HeapPage page = (HeapPage)Database.getBufferPool().getPage(tid, heappageid, perm);
 	   boolean mustAddNewPage = false;
 	   while (page.getNumEmptySlots() == 0) {
+		   Database.getBufferPool().releasePage(tid, heappageid);
 		   pgNo++;
 		   heappageid = new HeapPageId(this.getId(), pgNo);
 		   if (pgNo == this.numPages()) {

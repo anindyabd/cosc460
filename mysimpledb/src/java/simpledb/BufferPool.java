@@ -101,58 +101,48 @@ public class BufferPool {
      * @param perm the requested permissions on the page
      * @throws IOException 
      */
-    public synchronized Page getPage(TransactionId tid, PageId pid, Permissions perm)
+    public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
     	
+    	BufferPool.getLockManager().acquireLock(pid, tid, perm);
     	
-    		Long starttime = System.currentTimeMillis();
-    		while (BufferPool.getLockManager().acquireLock(pid, tid, perm) == false){
-    			try {
-    				Thread.sleep(5);
-    			} catch (InterruptedException e) {
-    			}
-    			Long currtime = System.currentTimeMillis();
-    			if (currtime - starttime > 200) {
-    				throw new TransactionAbortedException();
-    			}
-    		}
-    	
-    	
-    	HashSet<PageId> set = null;
-    	
-    	if (!transactionmap.containsKey(tid)) {
-    		set = new HashSet<PageId>();
-    	}
-    	
-    	else {
-    		set = transactionmap.get(tid);
-    	}
-    	
-    	set.add(pid);
-    	
-    	transactionmap.put(tid, set);
+    	synchronized(this) {
 
-    	if (pagemap.containsKey(pid)){
-        	Long time = System.currentTimeMillis();
-        	Page page = pagemap.get(pid);
-        	timemap.put(time, page);
-        	return page;
-        }
-    	
-        if (this.currpages == this.numPages) {
-        	this.evictPage();
-        }
-        
-        int tableid = pid.getTableId();
-        DbFile dbfile = Database.getCatalog().getDatabaseFile(tableid);
-        this.pagemap.put(pid, dbfile.readPage(pid));
-        Page page = pagemap.get(pid);
-        Long time = System.currentTimeMillis();
-        timemap.put(time, page);
-        currpages++;
-        
-    	return page;
-        
+    		HashSet<PageId> set = null;
+
+    		if (!transactionmap.containsKey(tid)) {
+    			set = new HashSet<PageId>();
+    		}
+
+    		else {
+    			set = transactionmap.get(tid);
+    		}
+
+    		set.add(pid);
+
+    		transactionmap.put(tid, set);
+
+    		if (pagemap.containsKey(pid)){
+    			Long time = System.currentTimeMillis();
+    			Page page = pagemap.get(pid);
+    			timemap.put(time, page);
+    			return page;
+    		}
+
+    		if (this.currpages == this.numPages) {
+    			this.evictPage();
+    		}
+
+    		int tableid = pid.getTableId();
+    		DbFile dbfile = Database.getCatalog().getDatabaseFile(tableid);
+    		this.pagemap.put(pid, dbfile.readPage(pid));
+    		Page page = pagemap.get(pid);
+    		Long time = System.currentTimeMillis();
+    		timemap.put(time, page);
+    		currpages++;
+
+    		return page;
+    	}
     }
 
     /**
@@ -178,7 +168,7 @@ public class BufferPool {
      *
      * @param tid the ID of the transaction requesting the unlock
      */
-    public void transactionComplete(TransactionId tid) throws IOException {
+    public synchronized void transactionComplete(TransactionId tid) throws IOException {
         
     	transactionComplete(tid, true);
     	
@@ -237,6 +227,7 @@ public class BufferPool {
     				releasePage(tid, pid);
     			}
     		}
+    		BufferPool.getLockManager().removeFromWaiting(tid);
     		transactionmap.remove(tid);
     	}
     }
