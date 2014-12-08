@@ -57,7 +57,14 @@ public class Transaction {
 						Database.getLogFile().logAbort(tid); //does rollback too
 					} else {
 						//write all the dirty pages for this transaction out
-						Database.getBufferPool().flushPages(tid);
+						//Database.getBufferPool().flushPages(tid);
+						try {
+							Database.getBufferPool().flushLog(tid);
+						} catch (TransactionAbortedException e) {
+							e.printStackTrace();
+						} catch (DbException e) {
+							e.printStackTrace();
+						}
 						Database.getLogFile().logCommit(tid);
 					}
 

@@ -21,6 +21,8 @@ public class HeapPage implements Page {
     private boolean isdirty;
     private TransactionId madedirty;
     
+    private boolean flushedToLog;
+    
     byte[] oldData;
     private final Byte oldDataLock = new Byte((byte) 0);
 
@@ -310,6 +312,18 @@ public class HeapPage implements Page {
         }
         return null;
     }
+    
+    /**
+     * 
+     */
+    public void markFlushedToLog(boolean flushed) {
+    	this.flushedToLog = flushed;
+    }
+    
+    public boolean isFlushedToLog() {
+    	return this.flushedToLog;
+    }
+    
     /**
      * Counts the number of 0s in the bit representation of the int value. 
      */

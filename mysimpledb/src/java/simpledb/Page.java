@@ -32,6 +32,10 @@ public interface Page {
      * Set the dirty state of this page as dirtied by a particular transaction
      */
     public void markDirty(boolean dirty, TransactionId tid);
+    
+    public boolean isFlushedToLog();
+    
+    public void markFlushedToLog(boolean flushed);
 
     /**
      * Generates a byte array representing the contents of this page.

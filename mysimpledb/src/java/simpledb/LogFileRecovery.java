@@ -233,7 +233,6 @@ class LogFileRecovery {
 				}
 				break;
 			case LogType.UPDATE_RECORD:
-				System.out.println("why undo?");
 				Page beforeImg = LogFile.readPageData(readOnlyLog);
 				Page afterImg = LogFile.readPageData(readOnlyLog);
 				if (tidToRollback == tid) {

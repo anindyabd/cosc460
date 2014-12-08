@@ -232,7 +232,28 @@ public class BufferPool {
 				transactionmap.remove(tid);
 			}
 			BufferPool.getLockManager().removeFromWaiting(tid);
-			System.out.println("finished releasing locks" + tid);
+		}
+	}
+	
+	public synchronized void flushLog(TransactionId tid) throws TransactionAbortedException, DbException {
+		if (transactionmap.get(tid) != null) {
+			for (PageId pid: transactionmap.get(tid)) {
+				Page page = pagemap.get(pid); 
+				if (page != null && !page.isFlushedToLog()) {
+					try {
+						System.out.println("flushing");
+						page.setBeforeImage();
+						Database.getLogFile().logWrite(tid, page.getBeforeImage(), page);
+						Database.getLogFile().force();
+						page.markFlushedToLog(true);
+						System.out.println(page.isFlushedToLog());
+						pagemap.put(pid, page);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				
+				}
+			}
 		}
 	}
 
@@ -255,6 +276,7 @@ public class BufferPool {
 		DbFile file = Database.getCatalog().getDatabaseFile(tableId); 
 		ArrayList<Page> pagelist = file.insertTuple(tid, t);
 		for (Page page : pagelist) {
+			page.markFlushedToLog(false);
 			page.markDirty(true, tid);
 			pagemap.put(page.getId(), page);
 
@@ -279,6 +301,7 @@ public class BufferPool {
 		DbFile file = Database.getCatalog().getDatabaseFile(tableId);
 		ArrayList<Page> pagelist = file.deleteTuple(tid, t);
 		for (Page page : pagelist) {
+			page.markFlushedToLog(false);
 			page.markDirty(true, tid);
 			pagemap.put(page.getId(), page);
 		}
@@ -303,16 +326,6 @@ public class BufferPool {
 	 * cache.
 	 */
 	public synchronized void discardPage(PageId pid) {
-		/*Long key = null;
-    	for (Entry<Long, Page> entry:timemap.entrySet()) {
-    		if (entry.getValue().getId().equals(pid)) {
-    			key = entry.getKey();
-    			System.out.println(entry.getKey());
-    			System.out.println(key);
-    			break;
-    		}
-    	}
-    	timemap.remove(key);*/
 		pagemap.remove(pid);
 		this.currpages--;
 
@@ -331,16 +344,15 @@ public class BufferPool {
 		if (page != null) {
 			TransactionId dirtier = page.isDirty();
 			if (dirtier != null){
-				Database.getLogFile().logWrite(dirtier, page.getBeforeImage(), page);
-				Database.getLogFile().force();
+				if (!page.isFlushedToLog()) { // page may have been flushed to log already in Transaction.transactionComplete()
+					Database.getLogFile().logWrite(dirtier, page.getBeforeImage(), page);
+					Database.getLogFile().force();
+					page.markFlushedToLog(true);
+				}
 				page.markDirty(false, dirtier);
 				file.writePage(page);
 				pagemap.put(pid, page); // update hashmap
 			}
-			/*file.writePage(page);
-        	TransactionId tid = new TransactionId();
-        	page.markDirty(false, tid);
-        	pagemap.put(pid, page);*/ // update hashmap
 		}
 	}
 
