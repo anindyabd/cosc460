@@ -21,7 +21,7 @@ Exercise 1.
 
 3. Where is setBeforeImage image called?  
 
-    setBeforeImage is called 
+    setBeforeImage is called in BufferPool.transactionComplete() if a transaction is committing.
 
 
 Exercise 4.
