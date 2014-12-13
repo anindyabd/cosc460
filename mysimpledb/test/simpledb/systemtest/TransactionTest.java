@@ -67,7 +67,7 @@ public class TransactionTest extends SimpleDbTestBase {
         assertEquals(threads, ((IntField) tup.getField(0)).getValue());
         it.close();
         Database.getBufferPool().transactionComplete(tid);
-        Database.getBufferPool().flushAllPages();
+        //Database.getBufferPool().flushAllPages();
     }
 
     private static class XactionTester extends Thread {

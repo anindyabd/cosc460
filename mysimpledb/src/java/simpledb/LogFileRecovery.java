@@ -109,9 +109,9 @@ class LogFileRecovery {
 			long tid = readOnlyLog.readLong();
 			switch (type) {
 			case LogType.BEGIN_RECORD:
-            	if (tidToRollback.getId() == tid) {
+            	/*if (tidToRollback.getId() == tid) {
             		return;
-            	}
+            	}*/
             	break;
 			case LogType.UPDATE_RECORD:
 				Page beforeImg = LogFile.readPageData(readOnlyLog);

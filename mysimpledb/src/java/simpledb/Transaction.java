@@ -59,7 +59,7 @@ public class Transaction {
 						//write all the dirty pages for this transaction out
 						//Database.getBufferPool().flushPages(tid);
 						try {
-							Database.getBufferPool().flushLog(tid);
+							Database.getBufferPool().flushLog(tid); // flushing to log, so that we 
 						} catch (TransactionAbortedException e) {
 							e.printStackTrace();
 						} catch (DbException e) {

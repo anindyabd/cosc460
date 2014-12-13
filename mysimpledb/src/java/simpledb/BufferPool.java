@@ -241,12 +241,10 @@ public class BufferPool {
 				Page page = pagemap.get(pid); 
 				if (page != null && !page.isFlushedToLog()) {
 					try {
-						System.out.println("flushing");
 						page.setBeforeImage();
 						Database.getLogFile().logWrite(tid, page.getBeforeImage(), page);
 						Database.getLogFile().force();
 						page.markFlushedToLog(true);
-						System.out.println(page.isFlushedToLog());
 						pagemap.put(pid, page);
 					} catch (IOException e) {
 						e.printStackTrace();
