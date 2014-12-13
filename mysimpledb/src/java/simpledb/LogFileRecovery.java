@@ -109,9 +109,6 @@ class LogFileRecovery {
 			long tid = readOnlyLog.readLong();
 			switch (type) {
 			case LogType.BEGIN_RECORD:
-            	/*if (tidToRollback.getId() == tid) {
-            		return;
-            	}*/
             	break;
 			case LogType.UPDATE_RECORD:
 				Page beforeImg = LogFile.readPageData(readOnlyLog);
@@ -156,7 +153,6 @@ class LogFileRecovery {
 		readOnlyLog.seek(0);
 		long lastCheckpoint = readOnlyLog.readLong(); 
 		if (lastCheckpoint != -1) {
-			System.out.println("checkpt");
 			readOnlyLog.seek(lastCheckpoint);
 		}
 		while (readOnlyLog.getFilePointer() < readOnlyLog.length()) {
